@@ -1,4 +1,4 @@
-// Author Eric Pooser, pooser@jlab.org
+// Author Eric Pooser, pooser@jlab.org, 12/20/2016
 // Script to calculate pedestal values on crate, slot, channel basis
 
 #include <iostream>
