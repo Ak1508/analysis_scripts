@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 import ROOT as r
 
 from glob import *
+from matplotlib import rc
 
 # Define the system clock
 startTime = time.time()
 
 # Acquire user input for spectrometer
-if (sys.argv[1] != 'hms' and sys.argv[1] != 'shms'):
-    print 'Usage: python getCharge.py hms (or shms)'
+if (sys.argv[1] != 'hms' and sys.argv[1] != 'shms') :
+    print 'Usage: python getCharge.py hms (shms)'
     sys.exit(1)
 
 # Define run list files if using text file
@@ -48,32 +49,57 @@ if (sys.argv[1] == 'shms') :
     df   = glob('shms-data/shms_replay_production_*_-1.root')
 
 # Define constants
-al_den = 2.699     # density (g/cm^3) of AL7075
+avn     = 6.0221409e+23 # Avogadro's number
+al_den  = 2.699   # density (g/cm^3) of AL7075
+lh2_den = 0.07080 # density (g/cm^3) of LH2
+ld2_den = 0.1638  # density (g/cm^3) of LD2 
+c12_ath = 0.5244  # areal thickness (g/cm^2) of 1.5% C12
+# Atomic masses 
+lh2_am  = 1.008   # (g/mole) of LH2
+ld2_am  = 2.01410 # (g/mole) of LD2
+c12_am  = 12.0107 # (g/mole) of C12
+ald_am  = 26.9815 # (g/mole) of AL7075
 # Define target properties
 l2_entr  = 0.0150 # thickness (cm) of loop 2 (lh2) entrance window
-l2_exit  = 0.0205 # thickness (cm) of loop 2 (lh2) exit window
+l2_exit  = 0.0191 # thickness (cm) of loop 2 (lh2) exit window
 l3_entr  = 0.0130 # thickness (cm) of loop 3 (ld2) entrance window
-l3_exit  = 0.0186 # thickness (cm) of loop 3 (ld2) exit window
-ald_entr = 0.1816 # thickness (g/cm^2) of 10 cm aluminum (AL7075) dummy entrance
-ald_exit = 0.1815 # thickness (g/cm^2) of 10 cm aluminum (AL7075) dummy exit
+l3_exit  = 0.0188 # thickness (cm) of loop 3 (ld2) exit window
+ald_entr = 0.1816 # areal thickness (g/cm^2) of 10 cm aluminum (AL7075) dummy entrance
+ald_exit = 0.1815 # areal thickness (g/cm^2) of 10 cm aluminum (AL7075) dummy exit
 # Calculate target scale factors
-l2w = l2_entr+l2_exit
-l3w = l3_entr+l3_exit
-ald = (ald_entr+ald_exit)/al_den
-l2_sf = l2w/ald
-l3_sf = l3w/ald
+l2_len  = 10.0    # length (cm) of loop 2 (lh2) target cell
+l3_len  = 10.0    # length (cm) of loop 3 (ld2) target cell
+ald     = (ald_entr+ald_exit)/al_den # total thickness (g/cm^2)
+l2_dsf  = (l2_entr+l2_exit)/ald
+l3_dsf  = (l3_entr+l3_exit)/ald
+num_lh2 = lh2_den*l2_len*avn/lh2_am
+num_ld2 = ld2_den*l3_len*avn/ld2_am
+num_c12 = c12_ath*avn/c12_am
+num_ald = (ald_entr+ald_exit)*avn/ald_am
 
 # Define dictionaries
 # xem data dictionary
 xem = {}
 # Target dictionary
-xem_tar = { 'lh2' : 1.01,
-            'ld2' : 2.01,
-            'be9' : 9.01,
-            'b10' : 10.01,
-            'b11' : 11.01,
+#xem_tar = { 'lh2' : 1.01,
+#            'ld2' : 2.01,
+#            'be9' : 9.01,
+#            'b10' : 10.01,
+#            'b11' : 11.01,
+#            'c12' : 12.01,
+#            'ald' : 26.98 }
+# Target dictionaries
+xem_tar = { 'ld2' : 2.01,
             'c12' : 12.01,
             'ald' : 26.98 }
+# Number of nuclei in target
+xem_tar_num_nucl = { 'ld2' : num_ld2,
+                     'c12' : num_c12,
+                     'ald' : num_ald }
+xem_tar_atmc_num = { 'ld2' : 1.0,
+                     'c12' : 6.0,
+                     'ald' : 13.0 }
+
 # Report file dictionary
 xem_rpf = { 'data'     : [],  # data file
             'rn'       : [],  # run number
@@ -90,7 +116,8 @@ xem_rpf = { 'data'     : [],  # data file
             'tr_eff'   : [],  # tracking efficiency
             'etr_eff'  : [],  # electron tracking efficiency
             'htr_eff'  : [],  # hadron tracking efficiency
-            'scin_eff' : [] }  # 3/4 trigger efficiency
+            'scin_eff' : [],  # 3/4 trigger efficiency
+            'psfactor' : [] } # el_real (ptrig2) pre-scale factor
 
 # Store values of interest in arrays
 for index, run in enumerate(rf):
@@ -128,6 +155,8 @@ for index, run in enumerate(rf):
                 if ('HADRON SING FID TRACK EFFIC' in data[0]) : xem_rpf['htr_eff'].append(data[1][:8].strip())
             # Trigger efficiency
             if ('3_of_4 EFF' in data[0]) : xem_rpf['scin_eff'].append(data[1].strip())
+            psdata = data[0].split('=')
+            if ('Ps2_factor' in psdata[0]) : xem_rpf['psfactor'].append(psdata[1].strip())
 
 # Enumerate xem targets
 for tar_str, tar_amu in xem_tar.items():
@@ -156,10 +185,11 @@ for tar, tar_dict in xem.items():
     xem[tar]['tot_eff']  = xem[tar]['tr_eff']*xem[tar]['scin_eff']*xem[tar]['clt']*xem[tar]['elt']
     xem[tar]['etot_eff'] = xem[tar]['etr_eff']*xem[tar]['scin_eff']*xem[tar]['clt']*xem[tar]['elt']
     xem[tar]['htot_eff'] = xem[tar]['htr_eff']*xem[tar]['scin_eff']*xem[tar]['clt']*xem[tar]['elt']
-    # Calculate the efficiency corrected charge (electrons)
-    xem[tar]['eff_corr_q4a']     = xem[tar]['etot_eff']*xem[tar]['q4a']
-    xem[tar]['eff_corr_q4a_cut'] = xem[tar]['etot_eff']*xem[tar]['q4a_cut']
-
+    # Calculate the efficiency (and pre-scale) corrected charge (electrons)
+    xem[tar]['eff_corr_q4a']        = xem[tar]['etot_eff']*xem[tar]['q4a']
+    xem[tar]['eff_corr_q4a_cut']    = xem[tar]['etot_eff']*xem[tar]['q4a_cut']
+    xem[tar]['eff_ps_corr_q4a_cut'] = xem[tar]['etot_eff']*xem[tar]['q4a_cut'] / xem[tar]['psfactor']
+    
 # Parse root files into list corresponding the central momentum
 for tar, tar_dict in xem.items():
     # Sorted array of unique central momentum settings
@@ -188,7 +218,8 @@ for tar, tar_dict in xem.items():
             # If the central momenta from the two lists then fill root file containers
             if (xem[tar]['pcent_list'][index] == xem[tar]['pcent'][iindex]) :
                 tmp_rof_list.append(xem[tar]['data'][iindex])
-                tmp_ecq_list.append(xem[tar]['eff_corr_q4a_cut'][iindex])
+                #tmp_ecq_list.append(xem[tar]['eff_corr_q4a_cut'][iindex])
+                tmp_ecq_list.append(xem[tar]['eff_ps_corr_q4a_cut'][iindex])
         # Populate the root file list corresponding to the respective momenta
         xem[tar]['chain_list'].append(tmp_rof_list)
         xem[tar]['ecq_list'].append(np.asarray(tmp_ecq_list))
@@ -213,23 +244,31 @@ for tar, tar_dict in xem.items():
         xem[tar]['tree_chain'].append(tree_chain)
         
 # Create ROOT file with histograms
-if (sys.argv[1] == 'hms') :  xem_rof = r.TFile('xem_hms.root', 'recreate')
-if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms.root', 'recreate')
+if (sys.argv[1] == 'hms') :  xem_rof = r.TFile('xem_hms_test.root', 'recreate')
+if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_test.root', 'recreate')
 for tar, tar_dict in xem.items():
+    # Add LaTeX format for target strings
+    if (tar == 'ald') : tarStr = 'Al Dummy'
+    if (tar == 'ld2') : tarStr = 'LD_{2}'
+    if (tar == 'lh2') : tarStr = 'LH_{2}'
+    if (tar == 'be9') : tarStr = '{}^{9}Be'
+    if (tar == 'b10') : tarStr = '{}^{10}B'
+    if (tar == 'b11') : tarStr = '{}^{11}B'
+    if (tar == 'c12') : tarStr = '{}^{12}C'
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         xem_rof.mkdir('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
         xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
         #nentries = xem[tar]['tree_chain'][index].GetEntries() 
-        nentries = 10000
+        nentries = 0
         # Define histograms
-        hxbj            = r.TH1F('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tar.upper(), xem[tar]['pcent_list'][index]), 60, 0, 1.5)
-        hytar           = r.TH1F('hytar_%s_%s' % (tar, xem[tar]['pcent_list'][index]),           'y_{tar} for %s, %s GeV; y_{tar}; Number of Entries / 0.1 cm' % (tar.upper(), xem[tar]['pcent_list'][index]), 100, -5.0, 5.0)
-        hw2_vs_xbj      = r.TH2F('hw2_vs_xbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),      'W^{2} vs. x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; W^{2} / 0.010 GeV^{2}' % (tar.upper(), xem[tar]['pcent_list'][index]), 60, 0, 1.5, 1500, 0, 15.0)
-        hdp_vs_theta    = r.TH2F('hdp_vs_theta_%s_%s' % (tar, xem[tar]['pcent_list'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.1' % (tar.upper(), xem[tar]['pcent_list'][index]), 100, -5.0, 5.0, 340, -12.0, 22.0)
-        hxptar_vs_yptar = r.TH2F('hxptar_vs_yptar_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tar.upper(), xem[tar]['pcent_list'][index]), 200, -100, 100, 200, -100, 100.0)
+        hxbj            = r.TH1F('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5)
+        hytar           = r.TH1F('hytar_%s_%s' % (tar, xem[tar]['pcent_list'][index]),           'y_{tar} for %s, %s GeV; y_{tar}; Number of Entries / 0.1 cm' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0)
+        hw2_vs_xbj      = r.TH2F('hw2_vs_xbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),      'W^{2} vs. x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; W^{2} / 0.010 GeV^{2}' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5, 1500, 0, 15.0)
+        hdp_vs_theta    = r.TH2F('hdp_vs_theta_%s_%s' % (tar, xem[tar]['pcent_list'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.5%%' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0, 68, -12.0, 22.0)
+        hxptar_vs_yptar = r.TH2F('hxptar_vs_yptar_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tarStr, xem[tar]['pcent_list'][index]), 200, -100, 100, 200, -100, 100.0)
         # Loop over the entries in the trees
         print '\nAnalyzing the %s target at %s GeV.  There are %d events to be analyzed.\n' % (tar.upper(), xem[tar]['pcent_list'][index], nentries)
-        for entry in range(nentries+1):
+        for entry in range(nentries):
             xem[tar]['tree_chain'][index].GetEntry(entry)
             if ((entry % 100000) == 0 and entry != 0) : print 'Analyzed %d events...' % entry
             # Acquire the leaves of interest
@@ -279,18 +318,140 @@ for tar, tar_dict in xem.items():
         # Populate efficency corrected charge histograms
         # xbj
         hxbj_qNorm = hxbj.Clone()
-        hxbj_qNorm.SetNameTitle('hxbj_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; Y / #epsilonQ (Counts / mC)' % (tar.upper(), xem[tar]['pcent_list'][index]))
+        hxbj_qNorm.SetNameTitle('hxbj_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
         hxbj_qNorm.Sumw2()
         hxbj_qNorm.Scale(1. / xem[tar]['ecq'][index])
         # ytar
         hytar_qNorm = hytar.Clone()
-        hytar_qNorm.SetNameTitle('hytar_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized y_{tar} for %s, %s GeV; y_{tar} / 0.1 cm; Y / #epsilonQ (Counts / mC)' % (tar.upper(), xem[tar]['pcent_list'][index]))
+        hytar_qNorm.SetNameTitle('hytar_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized y_{tar} for %s, %s GeV; y_{tar} / 0.1 cm; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
         hytar_qNorm.Sumw2()
         hytar_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        # delta
+        hdp_qNorm = hdp_vs_theta.ProjectionY()
+        hdp_qNorm.SetNameTitle('hdp_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized #deltap for %s, %s GeV; #deltap / 0.5%%; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hdp_qNorm.Sumw2()
+        hdp_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        # w2
+        hw2_qNorm = hw2_vs_xbj.ProjectionY()
+        hw2_qNorm.SetNameTitle('hw2_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized W^{2} for %s, %s GeV; W^{2} / 0.010 GeV^{2}; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hw2_qNorm.Sumw2()
+        hw2_qNorm.Scale(1. / xem[tar]['ecq'][index])
         # Write the histograms to tape
         xem_rof.Write()
+        hdp_qNorm.Delete() # address a behavior with projection I do not understand
+        hw2_qNorm.Delete() # address a behavior with projection I do not understand
         xem_rof.cd('../')
 # Close the ROOT file
 xem_rof.Close()
 
 print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
+
+#*******************************************************************************
+
+# Development
+
+# Open ROOT file
+if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_full.root',  'read')
+if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full.root', 'read')
+
+# Convert histos in numpy arrays for easier manipulation
+for tar, tar_dict in xem.items():
+    # Create containers to store yields and bin centered values
+    xbj_raw_yield_list = []
+    xbj_val_list = []
+    xbj_yield_list = []
+    xem[tar]['xbj_raw_yield'] = []
+    xem[tar]['xbj_val'] = []
+    xem[tar]['xbj_yield'] = []
+    xem[tar]['xbj_yield_err'] = []
+    xem[tar]['xbj_yield_max'] = []
+    xem[tar]['xbj_yield_min'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        # Descend into directory with histos of interest
+        xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
+        # Define temporary place holders for histo and array objects
+        # Get raw histo and place contents in array
+        tmp_raw_hxbj = xem_rof.FindObjectAny('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
+        tmp_raw_axbj = tmp_raw_hxbj.GetArray() # returns number of x bins +2 (over&underflow)
+        tmp_raw_axbj.SetSize(tmp_raw_hxbj.GetNbinsX()) # returns number of x bins +2 (over&underflow)
+        # Get charge normalized histo and place contents in array
+        tmp_hxbj     = xem_rof.FindObjectAny('hxbj_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
+        tmp_axbj     = tmp_hxbj.GetArray()
+        tmp_axbj.SetSize(tmp_hxbj.GetNbinsX()) # returns number of x bins +2 (over&underflow)
+        # Define bin centering arrays
+        xbj_xval    = np.linspace(tmp_hxbj.GetXaxis().GetXmin(), tmp_hxbj.GetXaxis().GetXmax() - tmp_hxbj.GetXaxis().GetBinWidth(1), num = tmp_hxbj.GetNbinsX())
+        xbj_offset  = tmp_hxbj.GetXaxis().GetBinWidth(1) / 2.
+        tmp_xbj_arr = xbj_xval + xbj_offset
+        # Get maximum and conditional value of each histogram
+        max_yield_val = tmp_hxbj.GetMaximum()
+        min_yield_val = 0.30*max_yield_val
+        # Fill arrays with histo content
+        tmp_raw_hxbj_arr = np.array(tmp_raw_hxbj)[:-2] # delete the last two over&underflow elements
+        tmp_hxbj_arr     = np.array(tmp_hxbj)[:-2]     # delete the last two over&underflow elements
+        # Fill conditional arrays if desired
+        cond_raw_hxbj_arr = tmp_raw_hxbj_arr
+        #cond_hxbj_arr = tmp_hxbj_arr[tmp_hxbj_arr > min_yield_val]
+        #cond_xval_arr = tmp_xbj_arr[tmp_hxbj_arr > min_yield_val]
+        cond_hxbj_arr     = tmp_hxbj_arr
+        cond_xval_arr     = tmp_xbj_arr
+        # Store yields and bin centers in lists for each momentum
+        xbj_raw_yield_list.append(cond_raw_hxbj_arr)
+        xbj_val_list.append(cond_xval_arr)
+        xbj_yield_list.append(cond_hxbj_arr)
+        xem[tar]['xbj_yield_max'].append(max_yield_val)
+        xem[tar]['xbj_yield_min'].append(min_yield_val)
+    # Store yields and bin center lists in xem dictionary indexed on xem['pcent_list']
+    xem[tar]['xbj_val']       = xbj_val_list
+    xem[tar]['xbj_raw_yield'] = xbj_raw_yield_list
+    xem[tar]['xbj_yield']     = xbj_yield_list
+    xem[tar]['xbj_yield_err'] = np.sqrt(xbj_raw_yield_list)*(1. / xem[tar]['ecq'][index])
+
+# Calculate the dummy corrected yields for cryo targets
+for tar, tar_dict in xem.items():
+    # Create containers to store dummy corrected yields
+    xbj_dc_yield_list = []
+    xem[tar]['xbj_dc_yield'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        if (tar == 'lh2') :
+            xbj_dc_yield_list.append(xem['lh2']['xbj_yield'][index] - xem['ald']['xbj_yield'][index]*l2_dsf)
+        if (tar == 'ld2') :
+            xbj_dc_yield_list.append(xem['ld2']['xbj_yield'][index] - xem['ald']['xbj_yield'][index]*l3_dsf)
+        else :
+            xbj_dc_yield_list.append(xem[tar]['xbj_yield'][index])
+    xem[tar]['xbj_dc_yield'] = xbj_dc_yield_list
+
+# Calculate the ratios of yields
+for tar, tar_dict in xem.items():
+    # Create containers to store ratios and error on ratios
+    xbj_ratio_list = []
+    xem[tar]['xbj_ratio'] = []
+    xbj_ratio_err_list = []
+    xem[tar]['xbj_ratio_err'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        xbj_ratio_list.append(np.divide(xem[tar]['xbj_dc_yield'][index]*(1./(xem_tar_num_nucl[tar]*xem_tar_atmc_num[tar])), 
+                                        xem['ld2']['xbj_dc_yield'][index]*(1./(xem_tar_num_nucl['ld2']*xem_tar_atmc_num['ld2'])), 
+                                        where = xem['ld2']['xbj_dc_yield'][index] > 0.0))
+    xem[tar]['xbj_ratio'] = xbj_ratio_list
+    # Calculate error on ratios
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        xbj_ratio_err_list.append(xem[tar]['xbj_ratio'][index]*np.sqrt(np.divide(xem[tar]['xbj_yield_err'][index],   xem[tar]['xbj_yield'][index],   where = xem[tar]['xbj_yield'][index] > 0.0)**2.0 + 
+                                                                       np.divide(xem['ld2']['xbj_yield_err'][index], xem['ld2']['xbj_yield'][index], where = xem['ld2']['xbj_yield'][index] > 0.0)**2.0))
+    xem[tar]['xbj_ratio_err'] = xbj_ratio_err_list
+
+# Plot the ratios
+hmkr = ['bo', 'g^', 'rs', 'kd', 'm*']
+pmkr = ['bo', 'g^', 'rs', 'kd']
+for tar, tar_dict in xem.items():
+    # Add LaTeX format for target strings
+    if (tar == 'c12') :
+        for index, mom_list in enumerate(xem[tar]['pcent_list']):
+            if (sys.argv[1] == 'hms') : 
+                plt.errorbar(xem[tar]['xbj_val'][index], xem[tar]['xbj_ratio'][index], yerr = xem[tar]['xbj_ratio_err'][index], 
+                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+            elif (sys.argv[1] == 'shms') : 
+                plt.errorbar(xem[tar]['xbj_val'][index], xem[tar]['xbj_ratio'][index], yerr = xem[tar]['xbj_ratio_err'][index], 
+                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+        plt.xlim(0.0, 1.0)
+        plt.ylim(0.7, 1.2)
+        plt.legend()
+        #plt.show()
