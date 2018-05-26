@@ -49,6 +49,7 @@ if (sys.argv[1] == 'shms') :
     df   = glob('shms-data/shms_replay_production_*_-1.root')
 
 # Define constants
+mp      = 0.93827231 # (GeV) mass of proton
 avn     = 6.0221409e+23 # Avogadro's number
 al_den  = 2.699   # density (g/cm^3) of AL7075
 lh2_den = 0.07080 # density (g/cm^3) of LH2
@@ -362,92 +363,164 @@ print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
 #if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full_cuts.root', 'read')
 if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_eprime.root',  'read')
 if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_eprime.root', 'read')
+#if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_test_ep.root',  'read')
+#if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_test_ep.root', 'read')
 
 # Convert histos in numpy arrays for easier manipulation
 for tar, tar_dict in xem.items():
     # Create containers to store yields and bin centered values
-    xbj_raw_yield_list = []
-    xbj_val_list = []
-    xbj_yield_list = []
-    xem[tar]['xbj_raw_yield'] = []
-    xem[tar]['xbj_val'] = []
-    xem[tar]['xbj_yield'] = []
-    xem[tar]['xbj_yield_err'] = []
-    xem[tar]['xbj_yield_max'] = []
-    xem[tar]['xbj_yield_min'] = []
+    eprime_raw_yield_list = []
+    eprime_val_list = []
+    eprime_yield_list = []
+    xem[tar]['eprime_raw_yield'] = []
+    xem[tar]['eprime_val'] = []
+    xem[tar]['eprime_yield'] = []
+    xem[tar]['eprime_yield_err'] = []
+    xem[tar]['eprime_yield_max'] = []
+    xem[tar]['eprime_yield_min'] = []
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         # Descend into directory with histos of interest
         xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
         # Define temporary place holders for histo and array objects
         # Get raw histo and place contents in array
-        tmp_raw_hxbj = xem_rof.FindObjectAny('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        #print 'THere are % entries' % tmp_raw_hxbj.GetEntries()
-        tmp_raw_axbj = tmp_raw_hxbj.GetArray() # returns number of x bins +2 (over&underflow)
-        tmp_raw_axbj.SetSize(tmp_raw_hxbj.GetNbinsX()) # returns number of x bins +2 (over&underflow)
+        tmp_raw_heprime = xem_rof.FindObjectAny('heprime_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
+        tmp_raw_aeprime = tmp_raw_heprime.GetArray() # returns number of x bins +2 (over&underflow)
+        tmp_raw_aeprime.SetSize(tmp_raw_heprime.GetNbinsX()) # returns number of x bins +2 (over&underflow)
         # Get charge normalized histo and place contents in array
-        tmp_hxbj     = xem_rof.FindObjectAny('hxbj_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        tmp_axbj     = tmp_hxbj.GetArray()
-        tmp_axbj.SetSize(tmp_hxbj.GetNbinsX()) # returns number of x bins +2 (over&underflow)
+        tmp_heprime     = xem_rof.FindObjectAny('heprime_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
+        tmp_aeprime     = tmp_heprime.GetArray()
+        tmp_aeprime.SetSize(tmp_heprime.GetNbinsX()) # returns number of x bins +2 (over&underflow)
         # Define bin centering arrays
-        xbj_xval    = np.linspace(tmp_hxbj.GetXaxis().GetXmin(), tmp_hxbj.GetXaxis().GetXmax() - tmp_hxbj.GetXaxis().GetBinWidth(1), num = tmp_hxbj.GetNbinsX())
-        xbj_offset  = tmp_hxbj.GetXaxis().GetBinWidth(1) / 2.
-        tmp_xbj_arr = xbj_xval + xbj_offset
+        eprime_xval    = np.linspace(tmp_heprime.GetXaxis().GetXmin(), tmp_heprime.GetXaxis().GetXmax() - tmp_heprime.GetXaxis().GetBinWidth(1), num = tmp_heprime.GetNbinsX())
+        eprime_offset  = tmp_heprime.GetXaxis().GetBinWidth(1) / 2.
+        tmp_eprime_arr = eprime_xval + eprime_offset
         # Get maximum and conditional value of each histogram
-        max_yield_val = tmp_hxbj.GetMaximum()
+        max_yield_val = tmp_heprime.GetMaximum()
         min_yield_val = 0.30*max_yield_val
         # Fill arrays with histo content
-        tmp_raw_hxbj_arr = np.array(tmp_raw_hxbj)[:-2] # delete the last two over&underflow elements
-        tmp_hxbj_arr     = np.array(tmp_hxbj)[:-2]     # delete the last two over&underflow elements
+        tmp_raw_heprime_arr = np.array(tmp_raw_heprime)[:-2] # delete the last two over&underflow elements
+        tmp_heprime_arr     = np.array(tmp_heprime)[:-2]     # delete the last two over&underflow elements
         # Fill conditional arrays if desired
-        cond_raw_hxbj_arr = tmp_raw_hxbj_arr
-        #cond_hxbj_arr = tmp_hxbj_arr[tmp_hxbj_arr > min_yield_val]
-        #cond_xval_arr = tmp_xbj_arr[tmp_hxbj_arr > min_yield_val]
-        cond_hxbj_arr     = tmp_hxbj_arr
-        cond_xval_arr     = tmp_xbj_arr
+        cond_raw_heprime_arr = tmp_raw_heprime_arr
+        #cond_heprime_arr = tmp_heprime_arr[tmp_heprime_arr > min_yield_val]
+        #cond_xval_arr = tmp_eprime_arr[tmp_heprime_arr > min_yield_val]
+        cond_heprime_arr     = tmp_heprime_arr
+        cond_xval_arr     = tmp_eprime_arr
         # Store yields and bin centers in lists for each momentum
-        xbj_raw_yield_list.append(cond_raw_hxbj_arr)
-        xbj_val_list.append(cond_xval_arr)
-        xbj_yield_list.append(cond_hxbj_arr)
-        xem[tar]['xbj_yield_max'].append(max_yield_val)
-        xem[tar]['xbj_yield_min'].append(min_yield_val)
+        eprime_raw_yield_list.append(cond_raw_heprime_arr)
+        eprime_val_list.append(cond_xval_arr)
+        eprime_yield_list.append(cond_heprime_arr)
+        xem[tar]['eprime_yield_max'].append(max_yield_val)
+        xem[tar]['eprime_yield_min'].append(min_yield_val)
     # Store yields and bin center lists in xem dictionary indexed on xem['pcent_list']
-    xem[tar]['xbj_val']       = xbj_val_list
-    xem[tar]['xbj_raw_yield'] = xbj_raw_yield_list
-    xem[tar]['xbj_yield']     = xbj_yield_list
-    xem[tar]['xbj_yield_err'] = np.sqrt(xbj_raw_yield_list)*(1. / xem[tar]['ecq'][index])
+    xem[tar]['eprime_val']       = eprime_val_list
+    xem[tar]['eprime_raw_yield'] = eprime_raw_yield_list
+    xem[tar]['eprime_yield']     = eprime_yield_list
+    xem[tar]['eprime_yield_err'] = np.sqrt(eprime_raw_yield_list)*(1. / xem[tar]['ecq'][index])
 
 # Calculate the dummy corrected yields for cryo targets
 for tar, tar_dict in xem.items():
     # Create containers to store dummy corrected yields
-    xbj_dc_yield_list = []
-    xem[tar]['xbj_dc_yield'] = []
+    eprime_dc_yield_list = []
+    xem[tar]['eprime_dc_yield'] = []
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         if (tar == 'lh2') :
-            xbj_dc_yield_list.append(xem['lh2']['xbj_yield'][index] - xem['ald']['xbj_yield'][index]*l2_dsf)
+            eprime_dc_yield_list.append(xem['lh2']['eprime_yield'][index] - xem['ald']['eprime_yield'][index]*l2_dsf)
         if (tar == 'ld2') :
-            xbj_dc_yield_list.append(xem['ld2']['xbj_yield'][index] - xem['ald']['xbj_yield'][index]*l3_dsf)
+            eprime_dc_yield_list.append(xem['ld2']['eprime_yield'][index] - xem['ald']['eprime_yield'][index]*l3_dsf)
         else :
-            xbj_dc_yield_list.append(xem[tar]['xbj_yield'][index])
-    xem[tar]['xbj_dc_yield'] = xbj_dc_yield_list
-
+            eprime_dc_yield_list.append(xem[tar]['eprime_yield'][index])
+    xem[tar]['eprime_dc_yield'] = eprime_dc_yield_list
+    xem[tar]['eprime_dc_yield']
 # Calculate the ratios of yields
 for tar, tar_dict in xem.items():
     # Create containers to store ratios and error on ratios
-    xbj_ratio_list = []
-    xem[tar]['xbj_ratio'] = []
-    xbj_ratio_err_list = []
-    xem[tar]['xbj_ratio_err'] = []
+    eprime_ratio_list = []
+    xem[tar]['eprime_ratio'] = []
+    eprime_ratio_err_list = []
+    xem[tar]['eprime_ratio_err'] = []
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
-        xbj_ratio_list.append(np.divide(xem[tar]['xbj_dc_yield'][index]*(1./(xem_tar_num_nucl[tar]*xem_tar_atmc_num[tar])), 
-                                        xem['ld2']['xbj_dc_yield'][index]*(1./(xem_tar_num_nucl['ld2']*xem_tar_atmc_num['ld2'])), 
-                                        where = xem['ld2']['xbj_dc_yield'][index] > 0.0))
-    xem[tar]['xbj_ratio'] = xbj_ratio_list
+        eprime_ratio_list.append(np.divide(xem[tar]['eprime_dc_yield'][index]*(1./(xem_tar_num_nucl[tar]*xem_tar_atmc_num[tar])), 
+                                        xem['ld2']['eprime_dc_yield'][index]*(1./(xem_tar_num_nucl['ld2']*xem_tar_atmc_num['ld2'])), 
+                                        where = xem['ld2']['eprime_dc_yield'][index] > 0.0))
+    xem[tar]['eprime_ratio'] = eprime_ratio_list
     # Calculate error on ratios
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
-        xbj_ratio_err_list.append(xem[tar]['xbj_ratio'][index]*np.sqrt(np.divide(xem[tar]['xbj_yield_err'][index],   xem[tar]['xbj_yield'][index],   where = xem[tar]['xbj_yield'][index] > 0.0)**2.0 + 
-                                                                       np.divide(xem['ld2']['xbj_yield_err'][index], xem['ld2']['xbj_yield'][index], where = xem['ld2']['xbj_yield'][index] > 0.0)**2.0))
-    xem[tar]['xbj_ratio_err'] = xbj_ratio_err_list
+        eprime_ratio_err_list.append(xem[tar]['eprime_ratio'][index]*np.sqrt(np.divide(xem[tar]['eprime_yield_err'][index],   xem[tar]['eprime_yield'][index],   where = xem[tar]['eprime_yield'][index] > 0.0)**2.0 + 
+                                                                       np.divide(xem['ld2']['eprime_yield_err'][index], xem['ld2']['eprime_yield'][index], where = xem['ld2']['eprime_yield'][index] > 0.0)**2.0))
+    xem[tar]['eprime_ratio_err'] = eprime_ratio_err_list
 
+# Truncate all non-zero ratios for plotting
+for tar, tar_dict in xem.items():
+    # Initialize lists
+    eprime_nz_val_list = []
+    eprime_nz_ratio_list = []
+    eprime_nz_ratio_err_list = []
+    xem[tar]['eprime_nz_val'] = []
+    xem[tar]['eprime_nz_ratio'] = []
+    xem[tar]['eprime_nz_ratio_err'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        # Truncate all non-zero ratios for plotting
+        eprime_nz_val_list.append(xem[tar]['eprime_val'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+        eprime_nz_ratio_list.append(xem[tar]['eprime_ratio'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+        eprime_nz_ratio_err_list.append(xem[tar]['eprime_ratio_err'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+    xem[tar]['eprime_nz_val'] = eprime_nz_val_list
+    xem[tar]['eprime_nz_ratio'] = eprime_nz_ratio_list
+    xem[tar]['eprime_nz_ratio_err'] = eprime_nz_ratio_err_list
+
+# Plot the ratios in bins of E'
+hmkr = ['bo', 'g^', 'rs', 'kd', 'm*']
+pmkr = ['bo', 'g^', 'rs', 'kd']
+for tar, tar_dict in xem.items():
+    # Add LaTeX format for target strings
+    if (tar == 'c12') :
+        for index, mom_list in enumerate(xem[tar]['pcent_list']):
+            # Truncate all non-zero ratios for plotting     
+            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+                plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
+                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+            elif (sys.argv[1] == 'shms') : 
+                plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
+                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+        plt.xlim(2.0, 6.5)
+        plt.ylim(0.85, 1.2)
+        plt.legend(loc = 2)
+        plt.show()
+        plt.clf()
+
+# Define function to calculate xbj from bins in E'
+def calc_xbj(ep, eb, theta) :
+    return ((eb*ep*(1.0 - np.cos(np.deg2rad(theta))))/(mp*(eb - ep)))
+
+# Calculate xbj from E' and store in dictionary
+for tar, tar_dict in xem.items():
+    xbj_calc_nz_val_list = []
+    xbj_calc_nz_ratio_list = []
+    xem[tar]['xbj_calc_nz_val'] = []
+    xem[tar]['xbj_calc_nz_ratio'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        xbj_calc_nz_val_list.append(calc_xbj(xem[tar]['eprime_nz_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]))
+        xbj_calc_nz_ratio_list.append(xem[tar]['eprime_nz_ratio'][index])
+    xem[tar]['xbj_calc_nz_val'] = xbj_calc_nz_val_list
+    xem[tar]['xbj_calc_nz_ratio'] = xbj_calc_nz_ratio_list
+
+# Plot the ratios in bins of xbj from bins of E'
+for tar, tar_dict in xem.items():
+    if (tar == 'c12') :
+        for index, mom_list in enumerate(xem[tar]['pcent_list']):
+            # Truncate all non-zero ratios for plotting     
+            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
+                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+            elif (sys.argv[1] == 'shms') : 
+                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
+                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
+        plt.xlim(0.0, 1.15)
+        plt.ylim(0.85, 1.2)
+        plt.legend(loc = 2)
+        plt.show()
+        plt.clf()
+    
 # Import the radiative corrections table and parse the columns into arrays
 ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_f1f2_ineft.txt', skiprows = 1, unpack=True)
 # Define xbj range to inerpolate over and interpolate the data
@@ -458,36 +531,37 @@ def get_rcf(x):
     index = (np.abs(xr - x)).argmin()
     return interp[index]
 # Create array with same bin centering as histogram defined above
-offset = 0.0125
-xbj_bin = np.linspace(offset, 1.5-offset, 60)
-# Append ratios of discret xbj bins into array
-rcf_list = []
-for xval in xbj_bin:
-    rcf_list.append(get_rcf(xval))
-rcf = np.asarray(rcf_list)
+for tar, tar_dict in xem.items():
+    xbj_full_list = []
+    rcf_list = []
+    tmp_rcf_arr = []
+    tmp_cp_rcf_arr = []
+    xem[tar]['rcf_list'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        xbj_full_list.append(calc_xbj(xem[tar]['eprime_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]))
+        tmp_cp_rcf_arr = list(tmp_rcf_arr)
+        del tmp_rcf_arr[:]
+        for each_xbj in np.nditer(xbj_full_list[index]):
+            tmp_rcf_arr.append(get_rcf(each_xbj))
+        rcf_list.append(np.asarray(tmp_rcf_arr))
+    xem[tar]['rcf_list'] = rcf_list
 # Plot the data
-fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True)
+fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True, sharey=True)
 ax0.plot(xbj, ratio, 'bo', markersize = 8)
 ax0.plot(xr, interp, 'r-', linewidth = 2)
-ax1.plot(xbj_bin, rcf, 'dk', markersize = 8)
-plt.xlim(0.2, 1.25)
-plt.ylim(0.85, 1.2)
+ax1.plot(xbj_full_list[0], rcf_list[0], 'dk', markersize = 8)
+plt.xlim(0.2, 1.15)
+plt.ylim(0.875, 1.05)
 plt.show()
 
-# Plot the ratios
-hmkr = ['bo', 'g^', 'rs', 'kd', 'm*']
-pmkr = ['bo', 'g^', 'rs', 'kd']
+# Apply the radiative corrections to the data
 for tar, tar_dict in xem.items():
-    # Add LaTeX format for target strings
-    if (tar == 'c12') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            if (sys.argv[1] == 'hms') : 
-                plt.errorbar(xem[tar]['xbj_val'][index], xem[tar]['xbj_ratio'][index], yerr = xem[tar]['xbj_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
-            elif (sys.argv[1] == 'shms') : 
-                plt.errorbar(xem[tar]['xbj_val'][index], xem[tar]['xbj_ratio'][index], yerr = xem[tar]['xbj_ratio_err'][index], 
-                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
-        plt.xlim(0.0, 1.0)
-        plt.ylim(0.85, 1.2)
-        plt.legend()
-        plt.show()
+    xbj_calc_nz_val_list = []
+    xbj_calc_nz_ratio_list = []
+    xem[tar]['xbj_calc_nz_val'] = []
+    xem[tar]['xbj_calc_nz_ratio'] = []
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        xbj_calc_nz_val_list.append(calc_xbj(xem[tar]['eprime_nz_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]))
+        xbj_calc_nz_ratio_list.append(xem[tar]['eprime_nz_ratio'][index])
+    xem[tar]['xbj_calc_nz_val'] = xbj_calc_nz_val_list
+    xem[tar]['xbj_calc_nz_ratio'] = xbj_calc_nz_ratio_list

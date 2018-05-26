@@ -242,12 +242,23 @@ for tar, tar_dict in xem.items():
             tree_chain.Add(xem[tar]['chain_list'][index][df_index])
         # Populate the list of TChain objects for each momentum setting
         xem[tar]['tree_chain'].append(tree_chain)
+
+# Chain ROOT files together per momentum setting
+for tar, tar_dict in xem.items():
+    # Initialize the tree chain lists
+    xem[tar]['run_tree'] = []
+    run_tree = []
+    # Enumerate the individual momentum settings
+    for index, data_list in enumerate(xem[tar]['data']):
+        print tar, index, xem[tar]['data'][index]
+        # Initialze the TChain object for each momentum setting
+        run_tree = r.TChain('T')
+        run_tree.Add(xem[tar]['data'][index])
+        xem[tar]['run_tree'].append(run_tree)
         
 # Create ROOT file with histograms
-if (sys.argv[1] == 'hms') :  xem_rof = r.TFile('xem_hms_test.root', 'recreate')
-if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_test.root', 'recreate')
-#if (sys.argv[1] == 'hms') :  xem_rof = r.TFile('xem_hms_eprime.root', 'recreate')
-#if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_eprime.root', 'recreate')
+if (sys.argv[1] == 'hms') :  xem_rof = r.TFile('xem_hms_check.root', 'recreate')
+if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_check.root', 'recreate')
 for tar, tar_dict in xem.items():
     # Add LaTeX format for target strings
     if (tar == 'ald') : tarStr = 'Al Dummy'
@@ -257,43 +268,43 @@ for tar, tar_dict in xem.items():
     if (tar == 'b10') : tarStr = '{}^{10}B'
     if (tar == 'b11') : tarStr = '{}^{11}B'
     if (tar == 'c12') : tarStr = '{}^{12}C'
-    for index, mom_list in enumerate(xem[tar]['pcent_list']):
-        xem_rof.mkdir('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        #nentries = xem[tar]['tree_chain'][index].GetEntries() 
-        nentries = 0
+    for index, run_list in enumerate(xem[tar]['rn']):
+        if (xem[tar]['pcent'][index] != 2.7) : continue
+        xem_rof.mkdir('%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]))
+        xem_rof.cd('%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]))
+        nentries = xem[tar]['run_tree'][index].GetEntries() 
+        #nentries = 10000
+        #nentries = 0
         # Define histograms
-        hxbj            = r.TH1F('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5)
-        hytar           = r.TH1F('hytar_%s_%s' % (tar, xem[tar]['pcent_list'][index]),           'y_{tar} for %s, %s GeV; y_{tar} (cm); Number of Entries / 0.1 cm' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0)
-        heprime         = r.TH1F('heprime_%s_%s' % (tar, xem[tar]['pcent_list'][index]),         'E\' for %s, %s GeV; E\' (GeV); Number of Entries / 0.100 GeV' % (tarStr, xem[tar]['pcent_list'][index]), 120, 0.0, 12.0)
-        hw2_vs_xbj      = r.TH2F('hw2_vs_xbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),      'W^{2} vs. x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; W^{2} / 0.010 GeV^{2}' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5, 1500, 0, 15.0)
-        hdp_vs_theta    = r.TH2F('hdp_vs_theta_%s_%s' % (tar, xem[tar]['pcent_list'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.5%%' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0, 68, -12.0, 22.0)
-        hxptar_vs_yptar = r.TH2F('hxptar_vs_yptar_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tarStr, xem[tar]['pcent_list'][index]), 200, -100, 100, 200, -100, 100.0)
+        hxbj            = r.TH1F('hxbj_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent'][index]), 60, 0, 1.5)
+        hytar           = r.TH1F('hytar_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]),           'y_{tar} for %s, %s GeV; y_{tar}; Number of Entries / 0.1 cm' % (tarStr, xem[tar]['pcent'][index]), 100, -5.0, 5.0)
+        hw2_vs_xbj      = r.TH2F('hw2_vs_xbj_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]),      'W^{2} vs. x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; W^{2} / 0.010 GeV^{2}' % (tarStr, xem[tar]['pcent'][index]), 60, 0, 1.5, 1500, 0, 15.0)
+        hdp_vs_theta    = r.TH2F('hdp_vs_theta_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.5%%' % (tarStr, xem[tar]['pcent'][index]), 100, -5.0, 5.0, 68, -12.0, 22.0)
+        hxptar_vs_yptar = r.TH2F('hxptar_vs_yptar_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tarStr, xem[tar]['pcent'][index]), 200, -100, 100, 200, -100, 100.0)
         # Loop over the entries in the trees
-        print '\nAnalyzing the %s target at %s GeV.  There are %d events to be analyzed.\n' % (tar.upper(), xem[tar]['pcent_list'][index], nentries)
+        print '\nAnalyzing the %s target at %s GeV for run %s.  There are %d events to be analyzed.\n' % (tar.upper(), xem[tar]['pcent'][index], xem[tar]['rn'][index], nentries)
         for entry in range(nentries):
-            xem[tar]['tree_chain'][index].GetEntry(entry)
+            xem[tar]['run_tree'][index].GetEntry(entry)
             if ((entry % 100000) == 0 and entry != 0) : print 'Analyzed %d events...' % entry
             # Acquire the leaves of interest
             # PID variables
             if (sys.argv[1] == 'hms') :
-                lnpeSum = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.cer.npeSum'); npeSum = lnpeSum.GetValue(0)
+                lnpeSum = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.cer.npeSum'); npeSum = lnpeSum.GetValue(0)
             if (sys.argv[1] == 'shms') :
-                lhgcNpeSum = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.hgcer.npeSum'); hgcNpeSum  = lhgcNpeSum.GetValue(0)
-                lngcNpeSum = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.ngcer.npeSum'); ngcNpeSum  = lngcNpeSum.GetValue(0)                
-            letracknorm = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.cal.etracknorm');  etracknorm = letracknorm.GetValue(0)
+                lhgcNpeSum = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.hgcer.npeSum'); hgcNpeSum  = lhgcNpeSum.GetValue(0)
+                lngcNpeSum = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.ngcer.npeSum'); ngcNpeSum  = lngcNpeSum.GetValue(0)                
+            letracknorm = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.cal.etracknorm');  etracknorm = letracknorm.GetValue(0)
             # Phase space & acceptance variables
-            ldelta  = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.dp'); delta  = ldelta.GetValue(0)
-            lxtar   = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.x');  xtar   = lxtar.GetValue(0) 
-            lytar   = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.y');  ytar   = lytar.GetValue(0) 
-            lxptar  = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.th'); xptar  = 1000.0*lxptar.GetValue(0) # convert to mrad
-            lyptar  = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.ph'); yptar  = 1000.0*lyptar.GetValue(0) # convert to mrad
-            leprime = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.p');  eprime = leprime.GetValue(0) # convert to mrad
+            ldelta = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.dp'); delta  = ldelta.GetValue(0)
+            lxtar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.x');  xtar  = lxtar.GetValue(0) 
+            lytar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.y');  ytar  = lytar.GetValue(0) 
+            lxptar = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.th'); xptar = 1000.0*lxptar.GetValue(0) # convert to mrad
+            lyptar = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.ph'); yptar = 1000.0*lyptar.GetValue(0) # convert to mrad
             # Kinematic variables
-            lw2     = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.kin.W2'); w2 = lw2.GetValue(0)
-            lq2     = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.kin.Q2'); q2 = lq2.GetValue(0)
-            lxbj    = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.kin.x_bj'); xbj = lxbj.GetValue(0)
-            ltheta  = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.kin.scat_ang_deg'); theta = ltheta.GetValue(0)
+            lw2    = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.W2'); w2 = lw2.GetValue(0)
+            lq2    = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.Q2'); q2 = lq2.GetValue(0)
+            lxbj   = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.x_bj'); xbj = lxbj.GetValue(0)
+            ltheta = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.scat_ang_deg'); theta = ltheta.GetValue(0)
             # Fill histograms prior to fiducial cuts
             hw2_vs_xbj.Fill(xbj, w2)
             if (sys.argv[1] == 'hms') :  hdp_vs_theta.Fill(xem[tar]['theta'][index] + theta, delta)
@@ -317,34 +328,28 @@ for tar, tar_dict in xem.items():
             if (npeCut or deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
             # Fill the histograms
             hxbj.Fill(xbj)
-            heprime.Fill(eprime)
             hytar.Fill(ytar)
         # Populate efficency corrected charge histograms
         # xbj
         hxbj_qNorm = hxbj.Clone()
-        hxbj_qNorm.SetNameTitle('hxbj_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hxbj_qNorm.SetNameTitle('hxbj_qNorm_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]), 'Charge Normalized x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
         hxbj_qNorm.Sumw2()
-        hxbj_qNorm.Scale(1. / xem[tar]['ecq'][index])
-        # eprime
-        heprime_qNorm = heprime.Clone()
-        heprime_qNorm.SetNameTitle('heprime_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized E\' for %s, %s GeV; E\' / 0.100 GeV; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
-        heprime_qNorm.Sumw2()
-        heprime_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        hxbj_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
         # ytar
         hytar_qNorm = hytar.Clone()
-        hytar_qNorm.SetNameTitle('hytar_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized y_{tar} for %s, %s GeV; y_{tar} / 0.1 cm; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hytar_qNorm.SetNameTitle('hytar_qNorm_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]), 'Charge Normalized y_{tar} for %s, %s GeV; y_{tar} / 0.1 cm; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
         hytar_qNorm.Sumw2()
-        hytar_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        hytar_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
         # delta
         hdp_qNorm = hdp_vs_theta.ProjectionY()
-        hdp_qNorm.SetNameTitle('hdp_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized #deltap for %s, %s GeV; #deltap / 0.5%%; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hdp_qNorm.SetNameTitle('hdp_qNorm_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]), 'Charge Normalized #deltap for %s, %s GeV; #deltap / 0.5%%; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
         hdp_qNorm.Sumw2()
-        hdp_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        hdp_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
         # w2
         hw2_qNorm = hw2_vs_xbj.ProjectionY()
-        hw2_qNorm.SetNameTitle('hw2_qNorm_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'Charge Normalized W^{2} for %s, %s GeV; W^{2} / 0.010 GeV^{2}; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['pcent_list'][index]))
+        hw2_qNorm.SetNameTitle('hw2_qNorm_%s_%s_%s' % (tar, xem[tar]['pcent'][index], xem[tar]['rn'][index]), 'Charge Normalized W^{2} for %s, %s GeV; W^{2} / 0.010 GeV^{2}; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
         hw2_qNorm.Sumw2()
-        hw2_qNorm.Scale(1. / xem[tar]['ecq'][index])
+        hw2_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
         # Write the histograms to tape
         xem_rof.Write()
         hdp_qNorm.Delete() # address a behavior with projection I do not understand
@@ -358,10 +363,8 @@ print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
 # Open ROOT files produced above so that ratios can be calculated
 #if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_full.root',  'read')
 #if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full.root', 'read')
-#if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_full_cuts.root',  'read')
-#if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full_cuts.root', 'read')
-if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_eprime.root',  'read')
-if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_eprime.root', 'read')
+if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_full_cuts.root',  'read')
+if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full_cuts.root', 'read')
 
 # Convert histos in numpy arrays for easier manipulation
 for tar, tar_dict in xem.items():
@@ -381,7 +384,6 @@ for tar, tar_dict in xem.items():
         # Define temporary place holders for histo and array objects
         # Get raw histo and place contents in array
         tmp_raw_hxbj = xem_rof.FindObjectAny('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        #print 'THere are % entries' % tmp_raw_hxbj.GetEntries()
         tmp_raw_axbj = tmp_raw_hxbj.GetArray() # returns number of x bins +2 (over&underflow)
         tmp_raw_axbj.SetSize(tmp_raw_hxbj.GetNbinsX()) # returns number of x bins +2 (over&underflow)
         # Get charge normalized histo and place contents in array
@@ -471,7 +473,7 @@ ax0.plot(xbj, ratio, 'bo', markersize = 8)
 ax0.plot(xr, interp, 'r-', linewidth = 2)
 ax1.plot(xbj_bin, rcf, 'dk', markersize = 8)
 plt.xlim(0.2, 1.25)
-plt.ylim(0.85, 1.2)
+plt.ylim(0.9, 1.04)
 plt.show()
 
 # Plot the ratios
@@ -488,6 +490,6 @@ for tar, tar_dict in xem.items():
                 plt.errorbar(xem[tar]['xbj_val'][index], xem[tar]['xbj_ratio'][index], yerr = xem[tar]['xbj_ratio_err'][index], 
                              fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=10)
         plt.xlim(0.0, 1.0)
-        plt.ylim(0.85, 1.2)
+        plt.ylim(0.7, 1.2)
         plt.legend()
         plt.show()
