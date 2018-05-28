@@ -24,34 +24,36 @@ if (sys.argv[1] != 'hms' and sys.argv[1] != 'shms') :
     sys.exit(1)
 
 # Define run list files if using text file
-#if (sys.argv[1] == 'hms') : 
-#    rlf = 'hms-xem-list.txt'
-#    rl = np.genfromtxt(hrlf, dtype = int, skip_header=1)
-#    rfp = 'hms-reports/replay_hms_production_'
-#    rfs = '_-1.report'
-#    rf  = []
-#    dfp = 'hms-data/hms_replay_production_'
-#    dfs = '_-1.root'
-#    df  = []
-#if (sys.argv[1] == 'shms') : 
-#    rlf = 'shms-xem-list.txt'
-#    rl = np.genfromtxt(hrlf, dtype = int, skip_header=1)
-#    rfp = 'shms-reports/replay_hms_production_'
-#    rfs = '_-1.report'
-#    rf  = []
-#    dfp = 'shms-data/shms_replay_production_'
-#    dfs = '_-1.root'
-#    df  = []
-
-# Define run list and report files
 if (sys.argv[1] == 'hms') :
     spec = 'h'
-    rf   = glob('hms-reports/replay_hms_production_*_-1.report')
-    df   = glob('hms-data/hms_replay_production_*_-1.root')
-if (sys.argv[1] == 'shms') : 
+    rlf = 'hms-xem-list.txt'
+    rl = np.genfromtxt(rlf, dtype = int, skip_header=1)
+    rfp = 'hms-reports/replay_hms_production_'
+    rfs = '_-1.report'
+    rf  = []
+    dfp = 'hms-data/hms_replay_production_'
+    dfs = '_-1.root'
+    df  = []
+if (sys.argv[1] == 'shms') :
     spec = 'p'
-    rf   = glob('shms-reports/replay_shms_production_*_-1.report')
-    df   = glob('shms-data/shms_replay_production_*_-1.root')
+    rlf = 'shms-xem-list.txt'
+    rl = np.genfromtxt(rlf, dtype = int, skip_header=1)
+    rfp = 'shms-reports/replay_shms_production_'
+    rfs = '_-1.report'
+    rf  = []
+    dfp = 'shms-data/shms_replay_production_'
+    dfs = '_-1.root'
+    df  = []
+
+# Define run list and report files
+#if (sys.argv[1] == 'hms') :
+#    spec = 'h'
+#    rf   = glob('hms-reports/replay_hms_production_*_-1.report')
+#    df   = glob('hms-data/hms_replay_production_*_-1.root')
+#if (sys.argv[1] == 'shms') : 
+#    spec = 'p'
+#    rf   = glob('shms-reports/replay_shms_production_*_-1.report')
+#    df   = glob('shms-data/shms_replay_production_*_-1.root')
 
 # Define constants
 mp      = 0.93827231 # (GeV) mass of proton
@@ -59,10 +61,16 @@ avn     = 6.0221409e+23 # Avogadro's number
 al_den  = 2.699   # density (g/cm^3) of AL7075
 lh2_den = 0.07080 # density (g/cm^3) of LH2
 ld2_den = 0.1638  # density (g/cm^3) of LD2 
+be9_ath = 1.3140  # areal thickness (g/cm^2) of 9Be
+b10_ath = 0.5722  # areal thickness (g/cm^2) of 10B4C
+b11_ath = 0.6348  # areal thickness (g/cm^2) of 11B4C
 c12_ath = 0.5244  # areal thickness (g/cm^2) of 1.5% C12
 # Atomic masses 
 lh2_am  = 1.008   # (g/mole) of LH2
 ld2_am  = 2.01410 # (g/mole) of LD2
+be9_am  = 9.01218 # (g/mole) of 9Be
+b10_am  = 10.0129 # (g/mole) of 10B
+b11_am  = 11.0093 # (g/mole) of 11B
 c12_am  = 12.0107 # (g/mole) of C12
 ald_am  = 26.9815 # (g/mole) of AL7075
 # Define target properties
@@ -80,6 +88,9 @@ l2_dsf  = (l2_entr+l2_exit)/ald
 l3_dsf  = (l3_entr+l3_exit)/ald
 num_lh2 = lh2_den*l2_len*avn/lh2_am
 num_ld2 = ld2_den*l3_len*avn/ld2_am
+num_be9 = be9_ath*avn/be9_am
+num_b10 = b10_ath*avn/b10_am
+num_b11 = b11_ath*avn/b11_am
 num_c12 = c12_ath*avn/c12_am
 num_ald = (ald_entr+ald_exit)*avn/ald_am
 
@@ -87,22 +98,36 @@ num_ald = (ald_entr+ald_exit)*avn/ald_am
 # xem data dictionary
 xem = {}
 # Target dictionary
-#xem_tar = { 'lh2' : 1.01,
-#            'ld2' : 2.01,
-#            'be9' : 9.01,
-#            'b10' : 10.01,
-#            'b11' : 11.01,
-#            'c12' : 12.01,
-#            'ald' : 26.98 }
-# Target dictionaries
-xem_tar = { 'ld2' : 2.01,
+xem_tar = { 'lh2' : 1.01,
+            'ld2' : 2.01,
+            'be9' : 9.01,
+            'b10' : 10.01,
+            'b11' : 11.01,
             'c12' : 12.01,
             'ald' : 26.98 }
+# Target dictionaries
+#xem_tar = { 'ld2' : 2.01,
+#            'c12' : 12.01,
+#            'ald' : 26.98 }
 # Number of nuclei in target
-xem_tar_num_nucl = { 'ld2' : num_ld2,
+#xem_tar_num_nucl = { 'ld2' : num_ld2,
+#                     'c12' : num_c12,
+#                     'ald' : num_ald }
+#xem_tar_atmc_num = { 'ld2' : 1.0,
+#                     'c12' : 6.0,
+#                     'ald' : 13.0 }
+xem_tar_num_nucl = { 'lh2' : num_lh2,
+                     'ld2' : num_ld2,
+                     'be9' : num_be9,
+                     'b10' : num_b10,
+                     'b11' : num_b11,
                      'c12' : num_c12,
                      'ald' : num_ald }
-xem_tar_atmc_num = { 'ld2' : 1.0,
+xem_tar_atmc_num = { 'lh2' : 1.0,
+                     'ld2' : 1.0,
+                     'be9' : 4.0,
+                     'b10' : 5.0,
+                     'b11' : 5.0,
                      'c12' : 6.0,
                      'ald' : 13.0 }
 
@@ -126,12 +151,14 @@ xem_rpf = { 'data'     : [],  # data file
             'psfactor' : [] } # el_real (ptrig2) pre-scale factor
 
 # Store values of interest in arrays
-for index, run in enumerate(rf):
+#for index, run in enumerate(rf):
+for index, run in enumerate(rl):
+    rf.append(rfp + str(rl[index]) + rfs)
+    df.append(dfp + str(rl[index]) + dfs)
     xem_rpf['data'].append(df[index])
     with open(rf[index]) as fobj:
         for line in fobj:
             data = line.split(':')
-            #if ('' in data[0]) : xem_rpf[''].append(data[1].strip())
             # Kinematic configurations
             if ('Run Num'     in data[0]) : xem_rpf['rn'].append(data[1].strip())
             if ('Momentum'    in data[0]) : xem_rpf['pcent'].append(data[1].strip())
@@ -250,10 +277,10 @@ for tar, tar_dict in xem.items():
         xem[tar]['tree_chain'].append(tree_chain)
         
 # Create ROOT file with histograms
-if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_test.root', 'recreate')
-if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test.root', 'recreate')
-#if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_eprime.root', 'recreate')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime.root', 'recreate')
+#if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_test.root', 'recreate')
+#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test.root', 'recreate')
+if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_eprime_full.root', 'recreate')
+if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'recreate')
 for tar, tar_dict in xem.items():
     # Add LaTeX format for target strings
     if (tar == 'ald') : tarStr = 'Al Dummy'
@@ -266,8 +293,8 @@ for tar, tar_dict in xem.items():
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         xem_rof.mkdir('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
         xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        #nentries = xem[tar]['tree_chain'][index].GetEntries() 
-        nentries = 0
+        nentries = xem[tar]['tree_chain'][index].GetEntries() 
+        #nentries = 10000
         # Define histograms
         hxbj            = R.TH1F('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5)
         hytar           = R.TH1F('hytar_%s_%s' % (tar, xem[tar]['pcent_list'][index]),           'y_{tar} for %s, %s GeV; y_{tar} (cm); Number of Entries / 0.1 cm' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0)
@@ -362,14 +389,10 @@ xem_rof.Close()
 print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
 
 # Open ROOT files produced above so that ratios can be calculated
-#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_full.root',  'read')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_full.root', 'read')
-#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_full_cuts.root',  'read')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_full_cuts.root', 'read')
-if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_eprime.root',  'read')
-if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime.root', 'read')
-#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_test_ep.root',  'read')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test_ep.root', 'read')
+if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_eprime_full.root',  'read')
+if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'read')
+#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_test.root',  'read')
+#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test.root', 'read')
 
 # Convert histos in numpy arrays for easier manipulation
 for tar, tar_dict in xem.items():
