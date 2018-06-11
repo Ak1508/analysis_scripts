@@ -81,24 +81,24 @@ num_ald = (ald_entr+ald_exit)*avn/ald_am
 # xem data dictionary
 xem = {}
 # Target dictionary
-#xem_tar = { 'lh2' : 1.01,
-#            'ld2' : 2.01,
-#            'be9' : 9.01,
-#            'b10' : 10.01,
-#            'b11' : 11.01,
-#            'c12' : 12.01,
-#            'ald' : 26.98 }
-# Target dictionaries
-xem_tar = { 'ld2' : 2.01,
+xem_tar = { 'lh2' : 1.01,
+            'ld2' : 2.01,
+            'be9' : 9.01,
+            'b10' : 10.01,
+            'b11' : 11.01,
             'c12' : 12.01,
             'ald' : 26.98 }
+# Target dictionaries
+#xem_tar = { 'ld2' : 2.01,
+#            'c12' : 12.01,
+#            'ald' : 26.98 }
 # Number of nuclei in target
-xem_tar_num_nucl = { 'ld2' : num_ld2,
-                     'c12' : num_c12,
-                     'ald' : num_ald }
-xem_tar_atmc_num = { 'ld2' : 1.0,
-                     'c12' : 6.0,
-                     'ald' : 13.0 }
+#xem_tar_num_nucl = { 'ld2' : num_ld2,
+#                     'c12' : num_c12,
+#                     'ald' : num_ald }
+#xem_tar_atmc_num = { 'ld2' : 1.0,
+#                     'c12' : 6.0,
+#                     'ald' : 13.0 }
 
 # Report file dictionary
 xem_rpf = { 'data'     : [],  # data file
@@ -360,8 +360,8 @@ print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
 #if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full.root', 'read')
 #if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_full_cuts.root',  'read')
 #if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_full_cuts.root', 'read')
-if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_eprime.root',  'read')
-if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_eprime.root', 'read')
+if (sys.argv[1] == 'hms')  : xem_rof = r.TFile('xem_hms_eprime_full.root',  'read')
+if (sys.argv[1] == 'shms') : xem_rof = r.TFile('xem_shms_eprime_full.root', 'read')
 
 # Convert histos in numpy arrays for easier manipulation
 for tar, tar_dict in xem.items():
