@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/python3.6
 
 # Import various modules
 import os, sys, time
-import string
+import string, pickle
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,47 +20,27 @@ startTime = time.time()
 
 # Acquire user input for spectrometer
 if (sys.argv[1] != 'hms' and sys.argv[1] != 'shms') :
-    print 'Usage: python getCharge.py hms (shms)'
+    print ('Usage: python getCharge.py hms (shms)')
     sys.exit(1)
 
-# Define run list files if using text file
-if (sys.argv[1] == 'hms') :
-    spec = 'h'
-    rlf = 'hms-xem-list.txt'
-    rl = np.genfromtxt(rlf, dtype = int, skip_header=1)
-    rfp = 'hms-reports/replay_hms_production_'
-    rfs = '_-1.report'
-    rf  = []
-    dfp = 'hms-data/hms_replay_production_'
-    dfs = '_-1.root'
-    df  = []
-if (sys.argv[1] == 'shms') :
-    spec = 'p'
-    rlf = 'shms-xem-list.txt'
-    rl = np.genfromtxt(rlf, dtype = int, skip_header=1)
-    rfp = 'shms-reports/replay_shms_production_'
-    rfs = '_-1.report'
-    rf  = []
-    dfp = 'shms-data/shms_replay_production_'
-    dfs = '_-1.root'
-    df  = []
-
 # Define run list and report files
-#if (sys.argv[1] == 'hms') :
-#    spec = 'h'
-#    rf   = glob('hms-reports/replay_hms_production_*_-1.report')
-#    df   = glob('hms-data/hms_replay_production_*_-1.root')
-#if (sys.argv[1] == 'shms') : 
-#    spec = 'p'
-#    rf   = glob('shms-reports/replay_shms_production_*_-1.report')
-#    df   = glob('shms-data/shms_replay_production_*_-1.root')
+if (sys.argv[1] == 'hms') :
+   spec = 'h'
+   rf   = glob('hms-xem-reports/replay_hms_production_*_-1.report')
+   df   = glob('hms-xem-data/hms_replay_production_*_-1.root')
+if (sys.argv[1] == 'shms') : 
+   spec = 'p'
+   rf   = glob('shms-xem-reports/replay_shms_production_*_-1.report')
+   df   = glob('shms-xem-data/shms_replay_production_*_-1.root')
+# Sort the lists for consistency
+df.sort(); rf.sort()
 
 # Define constants
 mp      = 0.93827231 # (GeV) mass of proton
 avn     = 6.0221409e+23 # Avogadro's number
-al_den  = 2.699   # density (g/cm^3) of AL7075
-lh2_den = 0.07080 # density (g/cm^3) of LH2
-ld2_den = 0.1638  # density (g/cm^3) of LD2 
+al_den  = 2.810   # density (g/cm^3) of AL7075 -> http://asm.matweb.com/search/SpecificMaterial.asp?bassnum=ma7075t6
+lh2_den = 0.0708  # density (g/cm^3) of LH2 -> http://pdg.lbl.gov/2011/AtomicNuclearProperties/HTML_PAGES/085.html
+ld2_den = 0.1690  # density (g/cm^3) of LD2 -> http://pdg.lbl.gov/2011/AtomicNuclearProperties/HTML_PAGES/299.html
 be9_ath = 1.3140  # areal thickness (g/cm^2) of 9Be
 b10_ath = 0.5722  # areal thickness (g/cm^2) of 10B4C
 b11_ath = 0.6348  # areal thickness (g/cm^2) of 11B4C
@@ -98,24 +78,24 @@ num_ald = (ald_entr+ald_exit)*avn/ald_am
 # xem data dictionary
 xem = {}
 # Target dictionary
-xem_tar = { 'lh2' : 1.01,
-            'ld2' : 2.01,
-            'be9' : 9.01,
-            'b10' : 10.01,
-            'b11' : 11.01,
-            'c12' : 12.01,
-            'ald' : 26.98 }
+# xem_tar          = { 'ld2' : 2.01,
+#                      'c12' : 12.01,
+#                      'ald' : 26.98 }
+# xem_tar_num_nucl = { 'ld2' : num_ld2,
+#                      'c12' : num_c12,
+#                      'ald' : num_ald }
+# xem_tar_atmc_num = { 'ld2' : 1.0,
+#                      'c12' : 6.0,
+#                      'ald' : 13.0 }
+
 # Target dictionaries
-#xem_tar = { 'ld2' : 2.01,
-#            'c12' : 12.01,
-#            'ald' : 26.98 }
-# Number of nuclei in target
-#xem_tar_num_nucl = { 'ld2' : num_ld2,
-#                     'c12' : num_c12,
-#                     'ald' : num_ald }
-#xem_tar_atmc_num = { 'ld2' : 1.0,
-#                     'c12' : 6.0,
-#                     'ald' : 13.0 }
+xem_tar          = { 'lh2' : 1.01,
+                     'ld2' : 2.01,
+                     'be9' : 9.01,
+                     'b10' : 10.01,
+                     'b11' : 11.01,
+                     'c12' : 12.01,
+                     'ald' : 26.98 }
 xem_tar_num_nucl = { 'lh2' : num_lh2,
                      'ld2' : num_ld2,
                      'be9' : num_be9,
@@ -151,10 +131,7 @@ xem_rpf = { 'data'     : [],  # data file
             'psfactor' : [] } # el_real (ptrig2) pre-scale factor
 
 # Store values of interest in arrays
-#for index, run in enumerate(rf):
-for index, run in enumerate(rl):
-    rf.append(rfp + str(rl[index]) + rfs)
-    df.append(dfp + str(rl[index]) + dfs)
+for index, run in enumerate(rf):
     xem_rpf['data'].append(df[index])
     with open(rf[index]) as fobj:
         for line in fobj:
@@ -166,11 +143,11 @@ for index, run in enumerate(rl):
             if ('Spec Theta'  in data[0]) : xem_rpf['theta'].append(data[1].strip())
             if ('Beam Energy' in data[0]) : xem_rpf['ebeam'].append(data[1].strip())
             # Charge and current
-            # if ('' in data[0]) : xem_rpf[''].append(filter(lambda x: x in string.digits + '.', data[1]))
-            if ('BCM4a Current' in data[0])          : xem_rpf['i4a'].append(filter(lambda x: x in string.digits + '.', data[1]))
-            if ('BCM4a Beam Cut Current' in data[0]) : xem_rpf['i4a_cut'].append(filter(lambda x: x in string.digits + '.', data[1]))
-            if ('BCM4a Charge' in data[0])           : xem_rpf['q4a'].append(filter(lambda x: x in string.digits + '.', data[1]))
-            if ('BCM4a Beam Cut Charge' in data[0])  : xem_rpf['q4a_cut'].append(filter(lambda x: x in string.digits + '.', data[1]))
+            # if ('' in data[0]) : xem_rpf[''].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))
+            if ('BCM4a Current' in data[0])          : xem_rpf['i4a'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4a Beam Cut Current' in data[0]) : xem_rpf['i4a_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4a Charge' in data[0])           : xem_rpf['q4a'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4a Beam Cut Charge' in data[0])  : xem_rpf['q4a_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
             # Live times (must be multiplied by 0.01 -> done later)
             if (sys.argv[1] == 'hms')  : 
                 if ('Pre-Scaled Ps2 HMS Computer Live Time' in data[0])  : xem_rpf['clt'].append(data[1][:8].strip())
@@ -179,11 +156,15 @@ for index, run in enumerate(rl):
             if ('OG 6 GeV Electronic Live Time (100, 150)' in data[0])   : xem_rpf['elt'].append(data[1][:8].strip())
             # Tracking efficiencies
             if (sys.argv[1] == 'hms')  : 
-                if ('SING FID TRACK EFFIC' in data[0])        : xem_rpf['tr_eff'].append(data[1][:11].strip())
+                if ('SING FID TRACK EFFIC' in data[0] and 
+                    'E SING' not in data[0] and 
+                    'HADRON' not in data[0])                  : xem_rpf['tr_eff'].append(data[1][:11].strip())
                 if ('E SING FID TRACK EFFIC' in data[0])      : xem_rpf['etr_eff'].append(data[1][:11].strip())
                 if ('HADRON SING FID TRACK EFFIC' in data[0]) : xem_rpf['htr_eff'].append(data[1][:11].strip())
             if (sys.argv[1] == 'shms')  : 
-                if ('SING FID TRACK EFFIC' in data[0])        : xem_rpf['tr_eff'].append(data[1][:8].strip())
+                if ('SING FID TRACK EFFIC' in data[0] and
+                    'E SING' not in data[0] and 
+                    'HADRON' not in data[0])                  : xem_rpf['tr_eff'].append(data[1][:8].strip())
                 if ('E SING FID TRACK EFFIC' in data[0])      : xem_rpf['etr_eff'].append(data[1][:8].strip())
                 if ('HADRON SING FID TRACK EFFIC' in data[0]) : xem_rpf['htr_eff'].append(data[1][:8].strip())
             # Trigger efficiency
@@ -210,7 +191,7 @@ for tar, tar_dict in xem.items():
     for rpf_vars, rpf_list in xem[tar].items():
         if (rpf_vars == 'data') : continue
         rpf_array = np.asarray(rpf_list, dtype = float)
-        del xem[tar][rpf_vars]
+        #del xem[tar][rpf_vars]
         if   (rpf_vars == 'clt') : xem[tar][rpf_vars] = rpf_array*0.01
         elif (rpf_vars == 'elt') : xem[tar][rpf_vars] = rpf_array*0.01
         else : xem[tar][rpf_vars] = rpf_array
@@ -277,8 +258,8 @@ for tar, tar_dict in xem.items():
         xem[tar]['tree_chain'].append(tree_chain)
         
 # Create ROOT file with histograms
-if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_test.root', 'recreate')
-if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test.root', 'recreate')
+if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_debug.root', 'recreate')
+if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_debug.root', 'recreate')
 #if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_eprime_full.root', 'recreate')
 #if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'recreate')
 for tar, tar_dict in xem.items():
@@ -293,7 +274,7 @@ for tar, tar_dict in xem.items():
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         xem_rof.mkdir('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
         xem_rof.cd('%s_%s' % (tar, xem[tar]['pcent_list'][index]))
-        #nentries = xem[tar]['tree_chain'][index].GetEntries() 
+        #nentries = xem[tar]['tree_chain'][index].GetEntries()
         nentries = 0
         # Define histograms
         hxbj            = R.TH1F('hxbj_%s_%s' % (tar, xem[tar]['pcent_list'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5)
@@ -303,10 +284,10 @@ for tar, tar_dict in xem.items():
         hdp_vs_theta    = R.TH2F('hdp_vs_theta_%s_%s' % (tar, xem[tar]['pcent_list'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.5%%' % (tarStr, xem[tar]['pcent_list'][index]), 100, -5.0, 5.0, 68, -12.0, 22.0)
         hxptar_vs_yptar = R.TH2F('hxptar_vs_yptar_%s_%s' % (tar, xem[tar]['pcent_list'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tarStr, xem[tar]['pcent_list'][index]), 200, -100, 100, 200, -100, 100.0)
         # Loop over the entries in the trees
-        print '\nAnalyzing the %s target at %s GeV.  There are %d events to be analyzed.\n' % (tar.upper(), xem[tar]['pcent_list'][index], nentries)
+        print ('\nAnalyzing the %s target at %s GeV.  There are %d events to be analyzed.\n' % (tar.upper(), xem[tar]['pcent_list'][index], nentries))
         for entry in range(nentries):
             xem[tar]['tree_chain'][index].GetEntry(entry)
-            if ((entry % 100000) == 0 and entry != 0) : print 'Analyzed %d events...' % entry
+            if ((entry % 100000) == 0 and entry != 0) : print ('Analyzed %d events...' % entry)
             # Acquire the leaves of interest
             # PID variables
             if (sys.argv[1] == 'hms') :
@@ -335,7 +316,7 @@ for tar, tar_dict in xem.items():
             # Define the fiducial cuts
             if (sys.argv[1] == 'hms') :
                 npeCut   = bool(npeSum < 1.5)
-                deltaCut = bool(abs(delta) > 9.0)
+                deltaCut = bool(delta < -6.0 or delta > 8.0)
                 xptarCut = bool(abs(xptar) > 90.0)
             if (sys.argv[1] == 'shms') :
                 hgcNpeCut = bool(hgcNpeSum < 0.5)
@@ -347,7 +328,8 @@ for tar, tar_dict in xem.items():
             yptarCut      = bool(abs(yptar) > 50.0)
             etracknormCut = bool(etracknorm < 0.85)
             # Impose fiducial cuts
-            if (npeCut or deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
+            # if (npeCut or deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
+            if (deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
             # Fill the histograms
             hxbj.Fill(xbj)
             heprime.Fill(eprime)
@@ -386,13 +368,13 @@ for tar, tar_dict in xem.items():
 # Close the ROOT file
 xem_rof.Close()
 
-print '\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.))
+print ('\nThe analysis took %.3f minutes\n' % ((time.time() - startTime) / (60.)))
 
 # Open ROOT files produced above so that ratios can be calculated
 if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_eprime_full.root',  'read')
 if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'read')
-#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_test.root',  'read')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_test.root', 'read')
+#if (sys.argv[1] == 'hms')  : xem_rof = R.TFile('xem_hms_debug.root',  'read')
+#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_debug.root', 'read')
 
 # Convert histos in numpy arrays for easier manipulation
 for tar, tar_dict in xem.items():
@@ -454,12 +436,12 @@ for tar, tar_dict in xem.items():
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         if (tar == 'lh2') :
             eprime_dc_yield_list.append(xem['lh2']['eprime_yield'][index] - xem['ald']['eprime_yield'][index]*l2_dsf)
-        if (tar == 'ld2') :
+        elif (tar == 'ld2') :
             eprime_dc_yield_list.append(xem['ld2']['eprime_yield'][index] - xem['ald']['eprime_yield'][index]*l3_dsf)
         else :
             eprime_dc_yield_list.append(xem[tar]['eprime_yield'][index])
     xem[tar]['eprime_dc_yield'] = eprime_dc_yield_list
-    xem[tar]['eprime_dc_yield']
+
 # Calculate the ratios of yields
 for tar, tar_dict in xem.items():
     # Create containers to store ratios and error on ratios
@@ -467,15 +449,29 @@ for tar, tar_dict in xem.items():
     xem[tar]['eprime_ratio'] = []
     eprime_ratio_err_list = []
     xem[tar]['eprime_ratio_err'] = []
-    for index, mom_list in enumerate(xem[tar]['pcent_list']):
-        eprime_ratio_list.append(np.divide(xem[tar]['eprime_dc_yield'][index]*(1./(xem_tar_num_nucl[tar]*xem_tar_atmc_num[tar])), 
-                                        xem['ld2']['eprime_dc_yield'][index]*(1./(xem_tar_num_nucl['ld2']*xem_tar_atmc_num['ld2'])), 
-                                        where = xem['ld2']['eprime_dc_yield'][index] > 0.0))
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):     
+        # Align the pcent_list's, not all targets taken at all pcent's
+        #print ('Level 1: tar = %s, index = %d, pcent = %f' %(tar, index, xem[tar]['pcent_list'][index]))
+        for ld2_index, ld2_mom_list in enumerate(xem['ld2']['pcent_list']):
+            #print ('Level 2: tar = %s, index = %d, ld2_index = %d, pcent = %f' %(tar, index, ld2_index, xem[tar]['pcent_list'][index]))
+            if (xem[tar]['pcent_list'][index] == xem['ld2']['pcent_list'][ld2_index]) :
+                #print ('Level 3: tar = %s, index = %d, ld2_index = %d, pcent = %f' %(tar, index, ld2_index, xem[tar]['pcent_list'][index]))
+                #print ('xem[tar][\'eprime_dc_yield\'][index] =', xem[tar]['eprime_dc_yield'][index])
+                #print ('xem[\'ld2\'][\'eprime_dc_yield\'][ld2_index] =', xem['ld2']['eprime_dc_yield'][ld2_index])
+                eprime_ratio_list.append(np.divide(xem[tar]['eprime_dc_yield'][index]*(1./(xem_tar_num_nucl[tar]*xem_tar_atmc_num[tar])), 
+                                                   xem['ld2']['eprime_dc_yield'][ld2_index]*(1./(xem_tar_num_nucl['ld2']*xem_tar_atmc_num['ld2'])), 
+                                                   out = np.zeros_like(xem[tar]['eprime_dc_yield'][index]),
+                                                   where = xem['ld2']['eprime_dc_yield'][ld2_index] > 0.0))
     xem[tar]['eprime_ratio'] = eprime_ratio_list
+    #print ('xem[tar][\'eprime_ratio\'] = ', xem[tar]['eprime_ratio'])
     # Calculate error on ratios
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
-        eprime_ratio_err_list.append(xem[tar]['eprime_ratio'][index]*np.sqrt(np.divide(xem[tar]['eprime_yield_err'][index],   xem[tar]['eprime_yield'][index],   where = xem[tar]['eprime_yield'][index] > 0.0)**2.0 + 
-                                                                       np.divide(xem['ld2']['eprime_yield_err'][index], xem['ld2']['eprime_yield'][index], where = xem['ld2']['eprime_yield'][index] > 0.0)**2.0))
+        for ld2_index, ld2_mom_list in enumerate(xem['ld2']['pcent_list']):
+            if (xem[tar]['pcent_list'][index] == xem['ld2']['pcent_list'][ld2_index]) :
+                eprime_ratio_err_list.append(xem[tar]['eprime_ratio'][index]*np.sqrt(np.divide(xem[tar]['eprime_yield_err'][index], xem[tar]['eprime_yield'][index],   
+                                                                                               where = xem[tar]['eprime_yield'][index] > 0.0)**2.0 + 
+                                                                                     np.divide(xem['ld2']['eprime_yield_err'][ld2_index], xem['ld2']['eprime_yield'][ld2_index], 
+                                                                                               where = xem['ld2']['eprime_yield'][ld2_index] > 0.0)**2.0))
     xem[tar]['eprime_ratio_err'] = eprime_ratio_err_list
 
 # Truncate all non-zero ratios for plotting
@@ -496,25 +492,27 @@ for tar, tar_dict in xem.items():
     xem[tar]['eprime_nz_ratio'] = eprime_nz_ratio_list
     xem[tar]['eprime_nz_ratio_err'] = eprime_nz_ratio_err_list
 
-# Plot the ratios in bins of E'
+# Define markers
 hmkr = ['bo', 'g^', 'rs', 'kd', 'm*']
 pmkr = ['bo', 'g^', 'rs', 'kd']
-for tar, tar_dict in xem.items():
-    # Add LaTeX format for target strings
-    if (tar == 'c12') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') : 
-                plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
-                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-        plt.xlim(2.0, 6.5)
-        plt.ylim(0.85, 1.2)
-        plt.legend(loc = 2)
-        plt.show()
-        plt.clf()
+
+# # Plot the ratios in bins of E'
+# plt.figure('Ratios in bins of E')
+# for tar, tar_dict in xem.items():
+#     # Add LaTeX format for target strings
+#     if (tar == 'c12') :
+#         for index, mom_list in enumerate(xem[tar]['pcent_list']):
+#             if (sys.argv[1] == 'hms') : 
+#                 plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
+#                              fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#             elif (sys.argv[1] == 'shms') : 
+#                 plt.errorbar(xem[tar]['eprime_nz_val'][index], xem[tar]['eprime_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
+#                              fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#         plt.xlim(2.0, 6.5)
+#         #plt.ylim(0.85, 1.2)
+#         plt.legend(loc = 2)
+#         # plt.show()
+#         # plt.clf()
 
 # Define function to calculate xbj from bins in E'
 def calc_xbj(ep, eb, theta) :
@@ -532,22 +530,23 @@ for tar, tar_dict in xem.items():
     xem[tar]['xbj_calc_nz_val'] = xbj_calc_nz_val_list
     xem[tar]['xbj_calc_nz_ratio'] = xbj_calc_nz_ratio_list
 
-# Plot the ratios in bins of xbj from bins of E'
-for tar, tar_dict in xem.items():
-    if (tar == 'c12') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
-                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-        plt.xlim(0.0, 1.15)
-        plt.ylim(0.85, 1.2)
-        plt.legend(loc = 2)
-        plt.show()
-        plt.clf()
+# # Plot the ratios in bins of xbj from bins of E'
+# plt.figure('Ratios in bins of xbj from bins of E')
+# for tar, tar_dict in xem.items():
+#     if (tar == 'c12') :
+#         for index, mom_list in enumerate(xem[tar]['pcent_list']):
+#             # Truncate all non-zero ratios for plotting     
+#             if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+#                 plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index], 
+#                              fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#             elif (sys.argv[1] == 'shms') : 
+#                 plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio'][index], yerr = xem[tar]['eprime_nz_ratio_err'][index],
+#                              fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#         plt.xlim(0.0, 1.15)
+#         #plt.ylim(0.85, 1.2)
+#         plt.legend(loc = 2)
+#         # plt.show()
+#         # plt.clf()
     
 # Import the radiative corrections table and parse the columns into arrays
 ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_f1f2_ineft.txt', skiprows = 1, unpack=True)
@@ -573,14 +572,15 @@ for tar, tar_dict in xem.items():
             tmp_rcf_arr.append(get_rcf(each_xbj))
         rcf_list.append(np.asarray(tmp_rcf_arr))
     xem[tar]['rcf_list'] = rcf_list
-# Plot the data
-fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True, sharey=True)
-ax0.plot(xbj, ratio, 'bo', markersize = 7)
-ax0.plot(xr, interp, 'r-', linewidth = 2)
-ax1.plot(xbj_full_list[0], rcf_list[0], 'dk', markersize = 7)
-plt.xlim(0.2, 1.15)
-plt.ylim(0.875, 1.05)
-plt.show()
+# # Plot the data
+# #plt.figure('Radiative Corrections')
+# fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True, sharey=True)
+# ax0.plot(xbj, ratio, 'bo', markersize = 7)
+# ax0.plot(xr, interp, 'r-', linewidth = 2)
+# ax1.plot(xbj_full_list[0], rcf_list[0], 'dk', markersize = 7)
+# plt.xlim(0.2, 1.15)
+# #plt.ylim(0.875, 1.05)
+# # plt.show()
 
 # Apply the radiative corrections to the data
 for tar, tar_dict in xem.items():
@@ -607,95 +607,104 @@ for tar, tar_dict in xem.items():
     xem[tar]['xbj_nz_rcf'] = xbj_nz_rcf_list
     xem[tar]['xbj_calc_nz_ratio_corr'] = xbj_calc_nz_ratio_corr_list
 
+pickle.dump(xem, open(spec + 'xemDataDict_debug.pkl', 'wb'))
+#pickle.dump(xem, open(spec + 'xemDataDict_eprime_full.pkl', 'wb'))
+
 # Plot the radiative corrected ratios in bins of xbj from bins of E'
 for tar, tar_dict in xem.items():
-    if (tar == 'c12') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
-                             fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+    # Add LaTeX format for target strings
+    #if (tar == 'c12') :
+    plt.figure('%s Radiative corrected ratios in bins of xbj from bins of E' % tar)
+    for index, mom_list in enumerate(xem[tar]['pcent_list']):
+        # Truncate all non-zero ratios for plotting     
+        # if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+        if (sys.argv[1] == 'hms') : 
+            plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
+                         fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+        elif (sys.argv[1] == 'shms') : 
+            plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
+                         fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
         plt.xlim(0.0, 1.15)
-        plt.ylim(0.85, 1.2)
-        plt.legend(loc = 2)
-        plt.show()
-        plt.clf()
+        #plt.ylim(0.85, 1.2)
+        plt.legend(loc = 'best', numpoints = 1, fancybox = True)
+        # plt.show()
+        # plt.clf()
 
 
-# Plot the radiative corrected ratios in bins of xbj from bins of E'
-for tar, tar_dict in xem.items():
-    if (tar == 'c12') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') : 
-                if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
-                    tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
-                    tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
-                    tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
-                    plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-                else :
-                    plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-        plt.xlim(0.0, 1.025)
-        plt.ylim(0.9, 1.1)
-        plt.legend(loc = 2)
-        plt.xlabel(r'$x_{Bj}$', size = 20)
-        plt.ylabel(r'$\sigma_{{}^{12}C} / \sigma_{D}$', size = 20)
-        plt.show()
-        plt.clf()
-        #plt.savefig('c12_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
-    if (tar == 'b10') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') :
-                if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
-                    tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
-                    tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
-                    tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
-                    plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-                else :
-                    plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-        plt.xlim(0.0, 1.025)
-        plt.ylim(0.9, 1.1)
-        plt.legend(loc = 2)
-        plt.xlabel(r'$x_{Bj}$', size = 20)
-        plt.ylabel(r'$\sigma_{{}^{10}B} / \sigma_{D}$', size = 20)
-        plt.show()
-        plt.clf()
-        #plt.savefig('b10_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
-    if (tar == 'b11') :
-        for index, mom_list in enumerate(xem[tar]['pcent_list']):
-            # Truncate all non-zero ratios for plotting     
-            if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
-                plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
-                             fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-            elif (sys.argv[1] == 'shms') :
-                if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
-                    tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
-                    tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
-                    tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
-                    plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-                else :
-                    plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
-                                 fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-        plt.xlim(0.0, 1.025)
-        plt.ylim(0.9, 1.1)
-        plt.legend(loc = 2)
-        plt.xlabel(r'$x_{Bj}$', size = 20)
-        plt.ylabel(r'$\sigma_{{}^{11}B} / \sigma_{D}$', size = 20)
-        plt.show()
-        plt.clf()
-        #plt.savefig('b11_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
+# # Plot the radiative corrected ratios in bins of xbj from bins of E'
+# for tar, tar_dict in xem.items():
+#     if (tar == 'c12') :
+#         plt.figure('C12 Radiative corrected ratios in bins of xbj from bins of E')
+#         for index, mom_list in enumerate(xem[tar]['pcent_list']):
+#             # Truncate all non-zero ratios for plotting     
+#             if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+#                 plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
+#                              fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#             elif (sys.argv[1] == 'shms') : 
+#                 if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
+#                     tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
+#                     tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
+#                     tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
+#                     plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#                 else :
+#                     plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#         plt.xlim(0.0, 1.025)
+#         plt.ylim(0.9, 1.1)
+#         plt.legend(loc = 2)
+#         plt.xlabel(r'$x_{Bj}$', size = 20)
+#         plt.ylabel(r'$\sigma_{{}^{12}C} / \sigma_{D}$', size = 20)
+#         # plt.show()
+#         # plt.clf()
+#         #plt.savefig('c12_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
+#     if (tar == 'b10') :
+#         plt.figure('B10 Radiative corrected ratios in bins of xbj from bins of E')
+#         for index, mom_list in enumerate(xem[tar]['pcent_list']):
+#             # Truncate all non-zero ratios for plotting     
+#             if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+#                 plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
+#                              fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#             elif (sys.argv[1] == 'shms') :
+#                 if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
+#                     tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
+#                     tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
+#                     tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
+#                     plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#                 else :
+#                     plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#         plt.xlim(0.0, 1.025)
+#         plt.ylim(0.9, 1.1)
+#         plt.legend(loc = 2)
+#         plt.xlabel(r'$x_{Bj}$', size = 20)
+#         plt.ylabel(r'$\sigma_{{}^{10}B} / \sigma_{D}$', size = 20)
+#         # plt.show()
+#         # plt.clf()
+#         #plt.savefig('b10_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
+#     if (tar == 'b11') :
+#         plt.figure('B11 Radiative corrected ratios in bins of xbj from bins of E')
+#         for index, mom_list in enumerate(xem[tar]['pcent_list']):
+#             # Truncate all non-zero ratios for plotting     
+#             if (sys.argv[1] == 'hms' and xem[tar]['pcent_list'][index] != 3.3) : 
+#                 plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = xem[tar]['xbj_calc_nz_ratio_err'][index], 
+#                              fmt = '%s' % hmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#             elif (sys.argv[1] == 'shms') :
+#                 if (xem[tar]['pcent_list'][index] == 3.3 or xem[tar]['pcent_list'][index] == 4.0) :
+#                     tv  = np.delete(xem[tar]['xbj_calc_nz_val'][index], -1)
+#                     tr  = np.delete(xem[tar]['xbj_calc_nz_ratio_corr'][index], -1)
+#                     tre = np.delete(xem[tar]['xbj_calc_nz_ratio_err'][index], -1)
+#                     plt.errorbar(tv, np.zeros(np.size(tr))+1.0, yerr = tre,
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#                 else :
+#                     plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], np.zeros(np.size(xem[tar]['xbj_calc_nz_ratio_corr'][index]))+1.0, yerr = xem[tar]['xbj_calc_nz_ratio_err'][index],
+#                                  fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
+#         plt.xlim(0.0, 1.025)
+#         plt.ylim(0.9, 1.1)
+#         plt.legend(loc = 2)
+#         plt.xlabel(r'$x_{Bj}$', size = 20)
+#         plt.ylabel(r'$\sigma_{{}^{11}B} / \sigma_{D}$', size = 20)
+#         # plt.show()
+#         # plt.clf()
+#         #plt.savefig('b11_emc_ratio_stat_errors.png', format='png', figsize = (15, 15), dpi=1000)
