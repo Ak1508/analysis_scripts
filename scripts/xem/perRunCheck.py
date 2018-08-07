@@ -286,8 +286,10 @@ for tar, tar_dict in xem.items():
         #nentries = 10000
         #nentries = 0
         # Define histograms
+        hdp             = R.TH1F('hdp_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),             '#deltap for %s, %s GeV; #deltap; Number of Entries / 0.5%%' % (tarStr, xem[tar]['pcent'][index]), 68, -12.0, 22.0)
         hxbj            = R.TH1F('hxbj_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent'][index]), 60, 0, 1.5)
         hytar           = R.TH1F('hytar_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),           'y_{tar} for %s, %s GeV; y_{tar}; Number of Entries / 0.1 cm' % (tarStr, xem[tar]['pcent'][index]), 100, -5.0, 5.0)
+        heprime         = R.TH1F('heprime_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),         'E\' for %s, %s GeV; E\' (GeV); Number of Entries / 0.100 GeV' % (tarStr, xem[tar]['pcent'][index]), 120, 0.0, 12.0)
         hw2_vs_xbj      = R.TH2F('hw2_vs_xbj_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),      'W^{2} vs. x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; W^{2} / 0.010 GeV^{2}' % (tarStr, xem[tar]['pcent'][index]), 60, 0, 1.5, 1500, 0, 15.0)
         hdp_vs_theta    = R.TH2F('hdp_vs_theta_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]),    '#deltap vs. (#theta_{c}-#theta) for %s, %s GeV; #theta_{c}-#theta / 0.01 deg; #deltap / 0.5%%' % (tarStr, xem[tar]['pcent'][index]), 100, -5.0, 5.0, 68, -12.0, 22.0)
         hxptar_vs_yptar = R.TH2F('hxptar_vs_yptar_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]), 'y\'_{tar} vs. x\'_{tar} for %s, %s GeV; x\'_{tar} / 1 mrad; y\'_{tar} / 1 mrad' % (tarStr, xem[tar]['pcent'][index]), 200, -100, 100, 200, -100, 100.0)
@@ -305,11 +307,12 @@ for tar, tar_dict in xem.items():
                 lngcNpeSum = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.ngcer.npeSum'); ngcNpeSum  = lngcNpeSum.GetValue(0)                
             letracknorm = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.cal.etracknorm');  etracknorm = letracknorm.GetValue(0)
             # Phase space & acceptance variables
-            ldelta = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.dp'); delta  = ldelta.GetValue(0)
-            lxtar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.x');  xtar  = lxtar.GetValue(0) 
-            lytar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.y');  ytar  = lytar.GetValue(0) 
-            lxptar = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.th'); xptar = 1000.0*lxptar.GetValue(0) # convert to mrad
-            lyptar = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.ph'); yptar = 1000.0*lyptar.GetValue(0) # convert to mrad
+            ldelta  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.dp'); delta  = ldelta.GetValue(0)
+            lxtar   = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.x');  xtar  = lxtar.GetValue(0) 
+            lytar   = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.y');  ytar  = lytar.GetValue(0) 
+            lxptar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.th'); xptar = 1000.0*lxptar.GetValue(0) # convert to mrad
+            lyptar  = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.ph'); yptar = 1000.0*lyptar.GetValue(0) # convert to mrad
+            leprime = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.gtr.p');  eprime = leprime.GetValue(0)
             # Kinematic variables
             lw2    = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.W2'); w2 = lw2.GetValue(0)
             lq2    = xem[tar]['run_tree'][index].GetLeaf(spec.upper() + '.kin.Q2'); q2 = lq2.GetValue(0)
@@ -338,14 +341,21 @@ for tar, tar_dict in xem.items():
             # if (npeCut or deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
             if (deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
             # Fill the histograms
+            hdp.Fill(delta)
             hxbj.Fill(xbj)
             hytar.Fill(ytar)
+            heprime.Fill(eprime)
         # Populate efficency corrected charge histograms
         # xbj
         hxbj_qNorm = hxbj.Clone()
         hxbj_qNorm.SetNameTitle('hxbj_qNorm_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]), 'Charge Normalized x_{Bj} for %s, %s GeV; x_{Bj} / 0.025; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
         hxbj_qNorm.Sumw2()
         hxbj_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
+        # eprime
+        heprime_qNorm = heprime.Clone()
+        heprime_qNorm.SetNameTitle('heprime_qNorm_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]), 'Charge Normalized E\' for %s, %s GeV; E\' / 0.100 GeV; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
+        heprime_qNorm.Sumw2()
+        heprime_qNorm.Scale(1. / xem[tar]['eff_ps_corr_q4a_cut'][index])
         # ytar
         hytar_qNorm = hytar.Clone()
         hytar_qNorm.SetNameTitle('hytar_qNorm_%s_%s_%d' % (tar, str(xem[tar]['pcent'][index]).replace('.', 'p'), xem[tar]['rn'][index]), 'Charge Normalized y_{tar} for %s, %s GeV; y_{tar} / 0.1 cm; Y / #epsilonQ (Counts / mC)' % (tarStr, xem[tar]['data'][index]))
