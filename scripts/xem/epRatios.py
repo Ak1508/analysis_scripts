@@ -20,7 +20,7 @@ startTime = time.time()
 
 # Acquire user input for spectrometer
 if (sys.argv[1] != 'hms' and sys.argv[1] != 'shms') :
-    print ('Usage: python getCharge.py hms (shms)')
+    print ('Usage: python epRatios.py hms (shms)')
     sys.exit(1)
 
 # Define run list and report files
@@ -118,10 +118,10 @@ xem_rpf = { 'data'     : [],  # data file
             'tamu'     : [],  # target amu
             'theta'    : [],  # spectrometer theta
             'ebeam'    : [],  # beam energy
-            'i4a'      : [],  # bcm4a current (uA)
-            'i4a_cut'  : [],  # bcm4a current (uA, cut > 5 uA)
-            'q4a'      : [],  # bcm4a charge (mC)
-            'q4a_cut'  : [],  # bcm4a charge (mC, cut > 5 uA)
+            'i4b'      : [],  # bcm4b current (uA)
+            'i4b_cut'  : [],  # bcm4b current (uA, cut > 5 uA)
+            'q4b'      : [],  # bcm4b charge (mC)
+            'q4b_cut'  : [],  # bcm4b charge (mC, cut > 5 uA)
             'clt'      : [],  # computer live time
             'elt'      : [],  # electronic live time
             'tr_eff'   : [],  # tracking efficiency
@@ -144,10 +144,10 @@ for index, run in enumerate(rf):
             if ('Beam Energy' in data[0]) : xem_rpf['ebeam'].append(data[1].strip())
             # Charge and current
             # if ('' in data[0]) : xem_rpf[''].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))
-            if ('BCM4a Current' in data[0])          : xem_rpf['i4a'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
-            if ('BCM4a Beam Cut Current' in data[0]) : xem_rpf['i4a_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
-            if ('BCM4a Charge' in data[0])           : xem_rpf['q4a'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
-            if ('BCM4a Beam Cut Charge' in data[0])  : xem_rpf['q4a_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4B Current' in data[0])          : xem_rpf['i4b'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4B Beam Cut Current' in data[0]) : xem_rpf['i4b_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4B Charge' in data[0])           : xem_rpf['q4b'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
+            if ('BCM4B Beam Cut Charge' in data[0])  : xem_rpf['q4b_cut'].append(''.join(list(filter(lambda x: x in string.digits + '.', data[1]))))
             # Live times (must be multiplied by 0.01 -> done later)
             if (sys.argv[1] == 'hms')  : 
                 if ('Pre-Scaled Ps2 HMS Computer Live Time' in data[0])  : xem_rpf['clt'].append(data[1][:8].strip())
@@ -200,9 +200,9 @@ for tar, tar_dict in xem.items():
     xem[tar]['etot_eff'] = xem[tar]['etr_eff']*xem[tar]['scin_eff']*xem[tar]['clt']*xem[tar]['elt']
     xem[tar]['htot_eff'] = xem[tar]['htr_eff']*xem[tar]['scin_eff']*xem[tar]['clt']*xem[tar]['elt']
     # Calculate the efficiency (and pre-scale) corrected charge (electrons)
-    xem[tar]['eff_corr_q4a']        = xem[tar]['etot_eff']*xem[tar]['q4a']
-    xem[tar]['eff_corr_q4a_cut']    = xem[tar]['etot_eff']*xem[tar]['q4a_cut']
-    xem[tar]['eff_ps_corr_q4a_cut'] = xem[tar]['etot_eff']*xem[tar]['q4a_cut'] / xem[tar]['psfactor']
+    xem[tar]['eff_corr_q4b']        = xem[tar]['etot_eff']*xem[tar]['q4b']
+    xem[tar]['eff_corr_q4b_cut']    = xem[tar]['etot_eff']*xem[tar]['q4b_cut']
+    xem[tar]['eff_ps_corr_q4b_cut'] = xem[tar]['etot_eff']*xem[tar]['q4b_cut'] / xem[tar]['psfactor']
     
 # Parse root files into list corresponding the central momentum
 for tar, tar_dict in xem.items():
@@ -232,8 +232,8 @@ for tar, tar_dict in xem.items():
             # If the central momenta from the two lists then fill root file containers
             if (xem[tar]['pcent_list'][index] == xem[tar]['pcent'][iindex]) :
                 tmp_rof_list.append(xem[tar]['data'][iindex])
-                #tmp_ecq_list.append(xem[tar]['eff_corr_q4a_cut'][iindex])
-                tmp_ecq_list.append(xem[tar]['eff_ps_corr_q4a_cut'][iindex])
+                #tmp_ecq_list.append(xem[tar]['eff_corr_q4b_cut'][iindex])
+                tmp_ecq_list.append(xem[tar]['eff_ps_corr_q4b_cut'][iindex])
         # Populate the root file list corresponding to the respective momenta
         xem[tar]['chain_list'].append(tmp_rof_list)
         xem[tar]['ecq_list'].append(np.asarray(tmp_ecq_list))
@@ -260,8 +260,8 @@ for tar, tar_dict in xem.items():
 # Create ROOT file with histograms
 if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_debug.root', 'recreate')
 if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_debug.root', 'recreate')
-#if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_eprime_full.root', 'recreate')
-#if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'recreate')
+# if (sys.argv[1] == 'hms') :  xem_rof = R.TFile('xem_hms_eprime_full.root', 'recreate')
+# if (sys.argv[1] == 'shms') : xem_rof = R.TFile('xem_shms_eprime_full.root', 'recreate')
 for tar, tar_dict in xem.items():
     # Add LaTeX format for target strings
     if (tar == 'ald') : tarStr = 'Al Dummy'
@@ -274,7 +274,7 @@ for tar, tar_dict in xem.items():
     for index, mom_list in enumerate(xem[tar]['pcent_list']):
         xem_rof.mkdir('%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')))
         xem_rof.cd('%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')))
-        #nentries = xem[tar]['tree_chain'][index].GetEntries()
+        # nentries = xem[tar]['tree_chain'][index].GetEntries()
         nentries = 000
         # Define histograms
         hdelta          = R.TH1F('hdelta_%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')),             '#deltap for %s, %s GeV; #deltap; Number of Entries / 0.5%%' % (tarStr, xem[tar]['pcent_list'][index]), 68, -12.0, 22.0)
@@ -537,7 +537,7 @@ for tar, tar_dict in xem.items():
         xem[tar]['eprime_st_ratio_err'] = eprime_st_ratio_err_list
 
 # Acceptance correction function for cryo/solid target acceptance
-def accCorr(eprime, pcent) :
+def hmsAccCorr(eprime, pcent) :
     return (-0.00077258*((eprime - pcent) / pcent) + 0.95976)
 
 # Truncate all non-zero ratios for plotting
@@ -560,8 +560,11 @@ for tar, tar_dict in xem.items():
         # Truncate all non-zero ratios for plotting
         eprime_nz_val_list.append(xem[tar]['eprime_val'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
         # eprime_nz_ratio_list.append(xem[tar]['eprime_ratio'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
-        eprime_nz_ratio_list.append(accCorr(xem[tar]['eprime_val'][index][xem[tar]['eprime_ratio'][index]>1.0e-6], xem[tar]['pcent_list'][index]) * 
-                                    xem[tar]['eprime_ratio'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+        if (sys.argv[1] == 'hms') : 
+            eprime_nz_ratio_list.append(hmsAccCorr(xem[tar]['eprime_val'][index][xem[tar]['eprime_ratio'][index]>1.0e-6], xem[tar]['pcent_list'][index]) * 
+                                        xem[tar]['eprime_ratio'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+        else : 
+            eprime_nz_ratio_list.append(xem[tar]['eprime_ratio'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
         eprime_nz_ratio_err_list.append(xem[tar]['eprime_ratio_err'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
         # Truncate all non-zero solid target ratios for plotting
         if (tar == 'be9' or tar == 'b10' or tar == 'b11' or tar == 'c12') :
@@ -665,7 +668,7 @@ for tar, tar_dict in xem.items():
             elif (sys.argv[1] == 'shms') : 
                 plt.errorbar(xem[tar]['xbj_calc_nz_st_val'][index], xem[tar]['xbj_calc_nz_st_ratio'][index], yerr = calcTotErr(xem[tar]['eprime_nz_st_ratio_err'][index], 0.01),
                              fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-    plt.xlim(0.3, 1.065)
+    plt.xlim(0.2, 1.065)
     plt.ylim(0.8, 1.2)
     plt.xlabel(r'$x_{Bj}$', size = 20)
     if (tar == 'be9') : plt.ylabel(r'$\sigma_{{}^{9}Be} / \sigma_{{}^{12}C}$', size = 20)
@@ -677,14 +680,14 @@ for tar, tar_dict in xem.items():
     
 # Import the radiative corrections table and parse the columns into arrays\
 # Radiative correction
-ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_ineft.txt', skiprows = 1, unpack=True)
-# # F1F2 folded into radiative correction
-# ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_f1f2_ineft.txt', skiprows = 1, unpack=True)
+# ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_ineft.txt', skiprows = 1, unpack=True)
+# F1F2 folded into radiative correction
+ebeam, eprime, theta, xbj, q2, w2, rcd, rcc, ratio, cc = np.loadtxt('rc_f1f2_ineft.txt', skiprows = 1, unpack=True)
 # Define xbj range to inerpolate over and interpolate the data
 xr     = np.linspace(0.2, 1.25, 10000)
 interp = np.interp(xr, xbj, ratio)
 # Define function to return the same indexed value of the interpolated data
-def get_rcf(x):
+def get_rcf(x) :
     index = (np.abs(xr - x)).argmin()
     return interp[index]
 # Create array with same bin centering as histogram defined above
@@ -703,13 +706,13 @@ for tar, tar_dict in xem.items():
         rcf_list.append(np.asarray(tmp_rcf_arr))
     xem[tar]['rcf_list'] = rcf_list
 # Plot the data
-#plt.figure('Radiative Corrections')
-# fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True, sharey=True)
-# ax0.plot(xbj, ratio, 'bo', markersize = 7)
-# ax0.plot(xr, interp, 'r-', linewidth = 2)
-# ax1.plot(xbj_full_list[0], rcf_list[0], 'dk', markersize = 7)
-# plt.xlim(0.2, 1.15)
-#plt.ylim(0.875, 1.05)
+plt.figure('Radiative Corrections')
+fig, (ax0, ax1) = plt.subplots(nrows = 2, sharex = True, sharey=True)
+ax0.plot(xbj, ratio, 'bo', markersize = 7)
+ax0.plot(xr, interp, 'r-', linewidth = 2)
+ax1.plot(xbj_full_list[0], rcf_list[0], 'dk', markersize = 7)
+plt.xlim(0.2, 1.15)
+plt.ylim(0.875, 1.05)
 # plt.show()
 
 # Apply the radiative corrections to the data
@@ -738,8 +741,14 @@ for tar, tar_dict in xem.items():
     xem[tar]['xbj_calc_nz_ratio_corr'] = xbj_calc_nz_ratio_corr_list
 
 pickle.dump(xem, open(spec + 'xemDataDict_debug.pkl', 'wb'))
-#pickle.dump(xem, open(spec + 'xemDataDict_eprime_full.pkl', 'wb'))
+# pickle.dump(xem, open(spec + 'xemDataDict_eprime_full.pkl', 'wb'))
 
+# SLAC fit for EMC ratios
+def emc_slac_fit(x, A) :
+    alpha = -0.070 + 2.189*x - 24.667*x**2 + 145.291*x**3 - 497.237*x**4 + 1013.129*x**5 - 1208.393*x**6 + 775.767*x**7 - 205.872*x**8
+    C = np.exp(0.017 + 0.018*np.log(x) + 0.005*(np.log(x))**2)
+    return C*A**alpha
+    
 # Plot the radiative corrected ratios in bins of xbj from bins of E'
 for tar, tar_dict in xem.items():
     # Add LaTeX format for target strings
@@ -765,14 +774,16 @@ for tar, tar_dict in xem.items():
         elif (sys.argv[1] == 'shms') : 
             plt.errorbar(xem[tar]['xbj_calc_nz_val'][index], xem[tar]['xbj_calc_nz_ratio_corr'][index], yerr = calcTotErr(xem[tar]['xbj_calc_nz_ratio_err'][index], 0.01),
                          fmt = '%s' % pmkr[index], label = '%s GeV' % xem[tar]['pcent_list'][index], markersize=7, alpha=0.75)
-    plt.xlim(0.3, 0.985)
+    # Plot the SLAC fit
+    xbj = np.arange(0.01, 0.88, 0.001)
+    plt.plot(xbj, emc_slac_fit(xbj, xem_tar[tar]), 'm--')
     plt.ylim(0.85, 1.2)
+    plt.xlim(0.2, 0.985)
     plt.xlabel(r'$x_{Bj}$', size = 20)
     if (tar == 'c12') : plt.ylabel(r'$\sigma_{{}^{12}C} / \sigma_{D}$', size = 20)
     plt.legend(loc = 'best', numpoints = 1, fancybox = True)
     # plt.show() 
     # plt.clf()
-
 
 # # Plot the radiative corrected ratios in bins of xbj from bins of E'
 # for tar, tar_dict in xem.items():
