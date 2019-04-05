@@ -12,7 +12,7 @@ if (sys.argv[1] == 'hms')  :
     crno   = 3
     rdno   = 1
     spec   = 'h'
-    dbg_fn = 'tst1190_main_debug_hr1577.txt'
+    dbg_fn = 'tst1190_main_debug_hr2355.txt'
     slno   = [2, 4, 5, 7,  8, 10, 13, 14, 16, 17]
 if (sys.argv[1] == 'shms') : 
     crno   = 6
