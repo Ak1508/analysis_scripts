@@ -275,7 +275,7 @@ for tar, tar_dict in xem.items():
         xem_rof.mkdir('%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')))
         xem_rof.cd('%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')))
         # nentries = xem[tar]['tree_chain'][index].GetEntries()
-        nentries = 000
+        nentries = 0
         # Define histograms
         hdelta          = R.TH1F('hdelta_%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')),             '#deltap for %s, %s GeV; #deltap; Number of Entries / 0.5%%' % (tarStr, xem[tar]['pcent_list'][index]), 68, -12.0, 22.0)
         hxbj            = R.TH1F('hxbj_%s_%s' % (tar, str(xem[tar]['pcent_list'][index]).replace('.', 'p')),            'x_{Bj} for %s, %s GeV; x_{Bj}; Number of Entries / 0.025' % (tarStr, xem[tar]['pcent_list'][index]), 60, 0, 1.5)
@@ -296,7 +296,8 @@ for tar, tar_dict in xem.items():
             if (sys.argv[1] == 'shms') :
                 lhgcNpeSum = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.hgcer.npeSum'); hgcNpeSum  = lhgcNpeSum.GetValue(0)
                 lngcNpeSum = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.ngcer.npeSum'); ngcNpeSum  = lngcNpeSum.GetValue(0)                
-            letracknorm = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.cal.etracknorm');  etracknorm = letracknorm.GetValue(0)
+            letracknorm    = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.cal.etracknorm');     etracknorm    = letracknorm.GetValue(0)
+            letottracknorm = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.cal.etottracknorm');  etottracknorm = letottracknorm.GetValue(0)
             # Phase space & acceptance variables
             ldelta  = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.dp'); delta  = ldelta.GetValue(0)
             lxtar   = xem[tar]['tree_chain'][index].GetLeaf(spec.upper() + '.gtr.x');  xtar   = lxtar.GetValue(0) 
@@ -325,12 +326,15 @@ for tar, tar_dict in xem.items():
                 npeCut    = bool(hgcNpeCut or ngcNpeCut)
                 deltaCut  = bool(delta < -10.0 or delta > 20.0)
                 xptarCut  = bool(abs(xptar) > 70.0)
-            w2Cut         = bool(w2 < 2.0) # select the DIS regime
-            yptarCut      = bool(abs(yptar) > 50.0)
-            etracknormCut = bool(etracknorm < 0.85)
+            w2Cut            = bool(w2 < 2.0) # select the DIS regime
+            yptarCut         = bool(abs(yptar) > 50.0)
+            etracknormCut    = bool(etracknorm < 0.85)
+            etottracknormCut = bool(etottracknorm < 0.85)
             # Impose fiducial cuts
             # if (npeCut or deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
-            if (deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
+            # if (deltaCut or etracknormCut or w2Cut or xptarCut or yptarCut) : continue
+            # if (npeCut or deltaCut or etottracknormCut or w2Cut or xptarCut or yptarCut) : continue
+            if (deltaCut or etottracknormCut or w2Cut or xptarCut or yptarCut) : continue
             # Fill the histograms
             hdelta.Fill(delta)
             hxbj.Fill(xbj)
@@ -623,10 +627,10 @@ for tar, tar_dict in xem.items():
         if (tar == 'be9' or tar == 'b10' or tar == 'b11' or tar == 'c12') :
             xbj_calc_nz_st_val_list.append(calc_xbj(xem[tar]['eprime_nz_st_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]))
             xbj_calc_nz_st_ratio_list.append(xem[tar]['eprime_nz_st_ratio'][index])
-    xem[tar]['xbj_calc_nz_val'] = xbj_calc_nz_val_list
+    xem[tar]['xbj_calc_nz_val']   = xbj_calc_nz_val_list
     xem[tar]['xbj_calc_nz_ratio'] = xbj_calc_nz_ratio_list
     if (tar == 'be9' or tar == 'b10' or tar == 'b11' or tar == 'c12') :
-        xem[tar]['xbj_calc_nz_st_val'] = xbj_calc_nz_st_val_list
+        xem[tar]['xbj_calc_nz_st_val']   = xbj_calc_nz_st_val_list
         xem[tar]['xbj_calc_nz_st_ratio'] = xbj_calc_nz_st_ratio_list
 
 # Define function to add an overall systematic error
@@ -715,7 +719,11 @@ plt.xlim(0.2, 1.15)
 plt.ylim(0.875, 1.05)
 # plt.show()
 
-# Apply the radiative corrections to the data
+# Isoscaler correction using sign/sigp = 1 - 0.8x (Gomez et al.)
+def isoCorr(x, Z, N) :
+    return ((Z + N)*(1. - 0.4*x)) / (Z + N*(1. - 0.8*x))
+
+# Apply the radiative and isoscaler corrections to the data
 for tar, tar_dict in xem.items():
     xbj_calc_nz_val_list = []
     xbj_calc_nz_ratio_list = []
@@ -733,7 +741,9 @@ for tar, tar_dict in xem.items():
         xbj_calc_nz_ratio_err_list.append(calc_xbj(xem[tar]['eprime_nz_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index])*np.sqrt(2.)*
                                           np.divide(xem[tar]['eprime_nz_ratio_err'][index], xem[tar]['eprime_nz_ratio'][index]))
         xbj_nz_rcf_list.append(xem[tar]['rcf_list'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
-        xbj_calc_nz_ratio_corr_list.append(xem[tar]['eprime_nz_ratio'][index]*xem[tar]['rcf_list'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
+        if   (tar == 'be9') : xbj_calc_nz_ratio_corr_list.append(xem[tar]['eprime_nz_ratio'][index]*xem[tar]['rcf_list'][index][xem[tar]['eprime_ratio'][index]>1.0e-6]*isoCorr(calc_xbj(xem[tar]['eprime_nz_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]), 4, 5))
+        elif (tar == 'b11') : xbj_calc_nz_ratio_corr_list.append(xem[tar]['eprime_nz_ratio'][index]*xem[tar]['rcf_list'][index][xem[tar]['eprime_ratio'][index]>1.0e-6]*isoCorr(calc_xbj(xem[tar]['eprime_nz_val'][index], xem[tar]['ebeam'][index], xem[tar]['theta'][index]), 5, 6))
+        else : xbj_calc_nz_ratio_corr_list.append(xem[tar]['eprime_nz_ratio'][index]*xem[tar]['rcf_list'][index][xem[tar]['eprime_ratio'][index]>1.0e-6])
     xem[tar]['xbj_calc_nz_val'] = xbj_calc_nz_val_list
     xem[tar]['xbj_calc_nz_ratio'] = xbj_calc_nz_ratio_list
     xem[tar]['xbj_calc_nz_ratio_err'] = xbj_calc_nz_ratio_err_list
