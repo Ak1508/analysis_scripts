@@ -7,11 +7,15 @@ from scipy.stats import gumbel_r
 
 class dataStream :
 
-    def __init__(self, sampleRate, windowWidth, runTime) :
-        # sampling rate (s^-1), read-out window length (s), lenth of run (s)
-        self.sampleRate, self.windowWidth, self.runTime = sampleRate, windowWidth, runTime
-        # number of samples in read-out window
-        self.numSamples = sampleRate*windowWidth
+    def __init__(self, sampleRate, numEvents) :
+        # sampling rate (s^-1), number of events to simulate
+        self.sampleRate, self.numEvents = sampleRate, numEvents
+        # number of samples in read-out window, up-to 1024 samples for SAMPA chips
+        self.numSamples = 1024
+        # read-out window length (s)
+        self.windowWidth = (1.0 / self.sampleRate)*self.numSamples
+        # length of run (s)
+        self.runTime = self.numEvents * self.windowWidth
         # inital time sample
         self.initTime = 0.0
 
@@ -43,23 +47,24 @@ class dataStream :
         if (self.initTime == 0.0) :
             # simulate time and adc samples
             self.simTimeSamples(self.initTime, self.windowWidth)
-            # self.simAdcSignals(self.numSamples, self.randTimeIndex)
             self.simAdcSignals()
         elif (self.initTime > 0.0 and self.initTime < self.runTime) :
             # simulate the time and adc signals
             self.simTimeSamples(self.initTime, self.initTime + self.windowWidth)
-            # self.simAdcSignals(self.numSamples, self.randTimeIndex)
             self.simAdcSignals()
         elif (self.initTime >= self.runTime) : 
             raise StopIteration
 
-sampleRate  = 5.0e+6  # s^-1
-windowWidth = 1.0e-4  # s
-runLength   = 50.0e-4 # s
-numChans    = 3
- 
-for chan in range(1, numChans) : 
-    dataObj = dataStream(sampleRate, windowWidth, runLength)
+sampleRate = 10  # MHz
+numEvents  = 100 
+numChans   = 100
+
+datFile = open('run-%2.0d-mhz-%d-chan-%d-ev.dat' % (sampleRate, numChans, numEvents), 'w+')
+for chan in range(1, numChans+1) : 
+    datFile.write('# channel = %d\n' % chan)
+    dataObj = dataStream(sampleRate*1.0e+6, numEvents)
     for event in dataObj : 
-        plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
-    plt.show()
+        np.savetxt(datFile, (dataObj.timeSamples, dataObj.adcSamples), fmt='%.9f')
+    #     plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
+    # plt.show()
+datFile.close()
