@@ -78,7 +78,8 @@ for ievent in range(1, numEvents+1) :
 		datFile.write('# channel = %d\n' % chan)
 		dataObj = dataStream(sampleRate*1.0e+6, 1)
 		for event in dataObj : 
-			np.savetxt(datFile, (dataObj.timeSamples, dataObj.adcSamples), fmt='%.9f')
-		# 	plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
-		# plt.show()
+			np.savetxt(datFile, (np.add(dataObj.timeSamples, dataObj.windowWidth * (ievent - 1)), 
+			                     dataObj.adcSamples), fmt='%.9f')
+	# plt.plot(dataObj.timeSamples, dataObj.adcSamples) 		
+	# plt.show()
 datFile.close()
