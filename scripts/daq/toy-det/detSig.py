@@ -56,15 +56,29 @@ class dataStream :
             raise StopIteration
 
 sampleRate = 10  # MHz
-numEvents  = 100 
-numChans   = 100
+numEvents  = 10
+numChans   = 10
 
+# data file for streaming analysis
+# datFile = open('run-%2.0d-mhz-%d-chan-%d-ev.dat' % (sampleRate, numChans, numEvents), 'w+')
+# for chan in range(1, numChans+1) : 
+#     datFile.write('# channel = %d\n' % chan)
+#     dataObj = dataStream(sampleRate*1.0e+6, numEvents)
+#     for event in dataObj : 
+#         np.savetxt(datFile, (dataObj.timeSamples, dataObj.adcSamples), fmt='%.9f')
+#     #     plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
+#     # plt.show()
+# datFile.close()
+
+# data file for event based analysis
 datFile = open('run-%2.0d-mhz-%d-chan-%d-ev.dat' % (sampleRate, numChans, numEvents), 'w+')
-for chan in range(1, numChans+1) : 
-    datFile.write('# channel = %d\n' % chan)
-    dataObj = dataStream(sampleRate*1.0e+6, numEvents)
-    for event in dataObj : 
-        np.savetxt(datFile, (dataObj.timeSamples, dataObj.adcSamples), fmt='%.9f')
-    #     plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
-    # plt.show()
+for ievent in range(1, numEvents+1) :
+	datFile.write('@ event = %d\n' % ievent)
+	for chan in range(1, numChans+1) : 
+		datFile.write('# channel = %d\n' % chan)
+		dataObj = dataStream(sampleRate*1.0e+6, 1)
+		for event in dataObj : 
+			np.savetxt(datFile, (dataObj.timeSamples, dataObj.adcSamples), fmt='%.9f')
+		# 	plt.plot(dataObj.timeSamples, dataObj.adcSamples) 
+		# plt.show()
 datFile.close()
